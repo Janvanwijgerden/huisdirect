@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useTransition, useState } from "react";
+import { submitLead } from "../../lib/actions/leads";
 import {
   CalendarDays,
   CheckCircle2,
@@ -9,13 +10,16 @@ import {
   Phone,
   ShieldCheck,
   User,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 type Props = {
+  listingId: string;
   listingTitle: string;
 };
 
-export default function ListingLeadForm({ listingTitle }: Props) {
+export default function ListingLeadForm({ listingId, listingTitle }: Props) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -24,11 +28,24 @@ export default function ListingLeadForm({ listingTitle }: Props) {
     message: `Hallo,\n\nIk heb interesse in ${listingTitle} en ontvang graag meer informatie.\n`,
   });
 
+  const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitted(true);
+  function handleAction(formDataAction: FormData) {
+    startTransition(async () => {
+      setErrorMsg(null);
+      // Inject listing ID into the form data manually before sending
+      formDataAction.append('listingId', listingId);
+      
+      const res = await submitLead(formDataAction);
+      
+      if (res?.error) {
+        setErrorMsg(res.error);
+      } else {
+        setSubmitted(true);
+      }
+    });
   }
 
   return (
@@ -83,24 +100,33 @@ export default function ListingLeadForm({ listingTitle }: Props) {
         </div>
       </div>
 
+      {errorMsg && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+          <div>
+            <h3 className="font-semibold text-red-900">Aanvraag mislukt</h3>
+            <p className="mt-1 text-sm">{errorMsg}</p>
+          </div>
+        </div>
+      )}
+
       {submitted ? (
         <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-700" />
             <div>
-              <p className="text-base font-semibold text-emerald-900">
-                Je aanvraag is ontvangen
+              <p className="text-base font-bold text-emerald-900">
+                Je aanvraag is veilig verstuurd!
               </p>
               <p className="mt-2 text-sm leading-6 text-emerald-800">
-                Dit is nu nog een front-end demo, dus er wordt nog niets echt verzonden.
-                Visueel en qua flow staat het formulier nu wel klaar voor een echte koppeling
-                met e-mail, database of CRM.
+                Bedankt voor je interesse. De makelaar of verkoper heeft zojuist een notificatie ontvangen
+                en neemt zo spoedig mogelijk persoonlijk contact met je op.
               </p>
             </div>
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form action={handleAction} className="space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label
@@ -113,6 +139,7 @@ export default function ListingLeadForm({ listingTitle }: Props) {
                 <User className="h-4 w-4 text-emerald-700" />
                 <input
                   id="name"
+                  name="name"
                   type="text"
                   value={formData.name}
                   onChange={(e) =>
@@ -136,6 +163,7 @@ export default function ListingLeadForm({ listingTitle }: Props) {
                 <Mail className="h-4 w-4 text-emerald-700" />
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) =>
@@ -159,6 +187,7 @@ export default function ListingLeadForm({ listingTitle }: Props) {
                 <Phone className="h-4 w-4 text-emerald-700" />
                 <input
                   id="phone"
+                  name="phone"
                   type="tel"
                   value={formData.phone}
                   onChange={(e) =>
@@ -182,6 +211,7 @@ export default function ListingLeadForm({ listingTitle }: Props) {
                 <CalendarDays className="h-4 w-4 text-emerald-700" />
                 <select
                   id="requestType"
+                  name="requestType"
                   value={formData.requestType}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -208,6 +238,7 @@ export default function ListingLeadForm({ listingTitle }: Props) {
             </label>
             <textarea
               id="message"
+              name="message"
               value={formData.message}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, message: e.target.value }))
@@ -230,9 +261,11 @@ export default function ListingLeadForm({ listingTitle }: Props) {
 
             <button
               type="submit"
-              className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              disabled={isPending}
+              className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
             >
-              Verstuur aanvraag
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isPending ? "Bezig met sturen..." : "Verstuur aanvraag"}
             </button>
           </div>
         </form>

@@ -1,0 +1,18 @@
+﻿src/app/(main)/dashboard/page.tsx(119,29): error TS2322: Type '() => Promise<{ error: string; } | undefined>' is not assignable to type 'string | ((formData: FormData) => void | Promise<void>) | undefined'.
+  Type '() => Promise<{ error: string; } | undefined>' is not assignable to type '(formData: FormData) => void | Promise<void>'.
+    Type 'Promise<{ error: string; } | undefined>' is not assignable to type 'void | Promise<void>'.
+      Type 'Promise<{ error: string; } | undefined>' is not assignable to type 'Promise<void>'.
+        Type '{ error: string; } | undefined' is not assignable to type 'void'.
+          Type '{ error: string; }' is not assignable to type 'void'.
+src/app/(main)/dashboard/page.tsx(126,29): error TS2322: Type '() => Promise<{ error: string; } | undefined>' is not assignable to type 'string | ((formData: FormData) => void | Promise<void>) | undefined'.
+  Type '() => Promise<{ error: string; } | undefined>' is not assignable to type '(formData: FormData) => void | Promise<void>'.
+    Type 'Promise<{ error: string; } | undefined>' is not assignable to type 'void | Promise<void>'.
+      Type 'Promise<{ error: string; } | undefined>' is not assignable to type 'Promise<void>'.
+        Type '{ error: string; } | undefined' is not assignable to type 'void'.
+          Type '{ error: string; }' is not assignable to type 'void'.
+src/lib/supabase/middleware.ts(15,16): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+src/lib/supabase/middleware.ts(16,35): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/lib/supabase/middleware.ts(16,41): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/lib/supabase/middleware.ts(20,35): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/lib/supabase/middleware.ts(20,41): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/lib/supabase/middleware.ts(20,48): error TS7031: Binding element 'options' implicitly has an 'any' type.

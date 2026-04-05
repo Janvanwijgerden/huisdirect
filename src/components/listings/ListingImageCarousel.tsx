@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 type ListingImageCarouselProps = {
@@ -181,7 +181,6 @@ export default function ListingImageCarousel({
     const currentImageRect = getCurrentImageRect();
     if (!currentImageRect) return;
 
-    // Alleen zoomen boven de actuele zichtbare foto
     if (!isPointInsideRect(event.clientX, event.clientY, currentImageRect)) {
       return;
     }
@@ -205,7 +204,6 @@ export default function ListingImageCarousel({
       y: panRef.current.y - cursorY * (zoomRatio - 1),
     };
 
-    // Zachte recenter bij uitzoomen richting 1x
     if (nextZoom < prevZoom) {
       const thresholdStart = 1.35;
       const thresholdEnd = 1.0;
@@ -241,7 +239,6 @@ export default function ListingImageCarousel({
     const currentImageRect = getCurrentImageRect();
     if (!currentImageRect) return;
 
-    // Alleen slepen als je echt op de foto zit
     if (!isPointInsideRect(event.clientX, event.clientY, currentImageRect)) {
       return;
     }
@@ -337,11 +334,11 @@ export default function ListingImageCarousel({
               src={safeImages[currentIndex]}
               alt={`${title} - foto ${currentIndex + 1}`}
               fill
-              className={`object-cover object-center md:object-[center_40%] transition duration-300 ${
+              priority
+              sizes="(max-width: 1024px) 100vw, 900px"
+              className={`object-cover object-center md:object-[center_40%] transition duration-300 pointer-events-none ${
                 isLoading ? "scale-105 blur-sm" : "scale-100 blur-0"
               }`}
-              sizes="(max-width: 1024px) 100vw, 66vw"
-              priority
               onLoad={() => setIsLoading(false)}
             />
 
@@ -409,12 +406,10 @@ export default function ListingImageCarousel({
                 }`}
               >
                 <div className="relative aspect-[4/3] w-full">
-                  <Image
+                  <img
                     src={image}
                     alt={`${title} thumbnail ${index + 1}`}
-                    fill
-                    className="object-cover object-center"
-                    sizes="120px"
+                    className="absolute inset-0 h-full w-full object-cover object-center pointer-events-none"
                   />
                 </div>
               </button>

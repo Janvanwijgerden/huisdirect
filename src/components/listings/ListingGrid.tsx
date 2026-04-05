@@ -1,28 +1,19 @@
 import ListingCard from './ListingCard';
-import type { Listing } from '@/types/database';
 
-interface ListingGridProps {
-  listings: Listing[];
-  emptyMessage?: string;
-}
+type Props = {
+  listings: any[];
+};
 
-export default function ListingGrid({
-  listings,
-  emptyMessage = 'No listings found.',
-}: ListingGridProps) {
-  if (!listings || listings.length === 0) {
-    return (
-      <div className="text-center py-20 text-stone-400">
-        <p className="text-lg">{emptyMessage}</p>
-      </div>
-    );
-  }
-
+export default function ListingGrid({ listings }: Props) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {listings.map((listing, i) => (
-        <ListingCard key={listing.id} listing={listing} index={i} />
-      ))}
+    <div className="mx-auto max-w-5xl px-4">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        {listings.map((listing) => (
+          <div key={listing.id} className="mx-auto w-full max-w-[420px]">
+            <ListingCard listing={listing} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

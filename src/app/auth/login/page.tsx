@@ -1,110 +1,165 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useState } from 'react';
-import { signIn } from '@/lib/actions/auth';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import Link from "next/link";
+import { useMemo, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useFormState, useFormStatus } from "react-dom";
+import { signIn } from "../../../lib/actions/auth";
+import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 
-export default function LoginPage() {
-  const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    const result = await signIn(new FormData(e.currentTarget));
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
-  }
+// Geïsoleerde submit knop om de pending status uit useFormStatus te kunnen lezen
+function SubmitButton() {
+  const { pending } = useFormStatus();
 
   return (
-    <div className="w-full max-w-md">
-      <div className="card p-8 md:p-10">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">Welcome back</h1>
-          <p className="text-stone-500">Sign in to your Huisje account.</p>
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? "Bezig..." : "Inloggen"}
+      <ArrowRight className="h-5 w-5" />
+    </button>
+  );
+}
+
+function LoginFormContent() {
+  const searchParams = useSearchParams();
+
+  const resetSuccess = useMemo(
+    () => searchParams.get("reset") === "success",
+    [searchParams]
+  );
+
+  const verifiedSuccess = useMemo(
+    () => searchParams.get("verified") === "success",
+    [searchParams]
+  );
+
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // Maakt naadloos gebruik van de Server Action, inclusief error state management
+  const [state, formAction] = useFormState(signIn, null);
+
+  return (
+    <div className="w-full max-w-md rounded-[2rem] border border-white/80 bg-white/95 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.12)] backdrop-blur">
+      <div className="mb-6 flex justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
+          <ShieldCheck className="h-7 w-7" />
         </div>
+      </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-100 text-red-700 text-sm rounded-xl px-4 py-3 mb-6">
-            {error}
-          </div>
-        )}
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+          Inloggen
+        </h1>
+        <p className="mt-3 text-base leading-7 text-slate-600">
+          Log in op je account en beheer je woningadvertenties eenvoudig zelf.
+        </p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Email address
-            </label>
+      {verifiedSuccess && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Je e-mailadres is succesvol bevestigd. Je kunt nu inloggen.
+        </div>
+      )}
+
+      {resetSuccess && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Je wachtwoord is succesvol aangepast. Je kunt nu inloggen met je nieuwe wachtwoord.
+        </div>
+      )}
+
+      {state?.error && (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {state.error}
+        </div>
+      )}
+
+      <form action={formAction} className="space-y-5">
+        <div>
+          <label
+            htmlFor="email"
+            className="mb-2 block text-sm font-medium text-slate-700"
+          >
+            E-mail
+          </label>
+
+          <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition focus-within:border-emerald-500 focus-within:bg-white">
+            <Mail className="mr-3 h-5 w-5 text-slate-400" />
             <input
+              id="email"
               name="email"
               type="email"
               required
-              autoComplete="email"
-              placeholder="you@example.com"
-              className="input-field"
+              placeholder="jij@voorbeeld.nl"
+              className="w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-400"
             />
           </div>
+        </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-stone-700">Password</label>
-              <Link href="#" className="text-sm text-amber-600 hover:text-amber-700">
-                Forgot password?
-              </Link>
-            </div>
-            <div className="relative">
-              <input
-                name="password"
-                type={showPw ? 'text' : 'password'}
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="input-field pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-              >
-                {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-slate-700"
+            >
+              Wachtwoord
+            </label>
+
+            <Link
+              href="/auth/forgot-password"
+              className="text-sm font-medium text-emerald-700 transition hover:text-emerald-800"
+            >
+              Wachtwoord vergeten?
+            </Link>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full mt-2"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Signing in...
-              </span>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                Sign in
-              </>
-            )}
-          </button>
-        </form>
+          <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition focus-within:border-emerald-500 focus-within:bg-white">
+            <Lock className="mr-3 h-5 w-5 text-slate-400" />
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required
+              placeholder="Voer je wachtwoord in"
+              className="w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="ml-3 text-slate-400 transition hover:text-slate-600"
+              aria-label={showPassword ? "Verberg wachtwoord" : "Toon wachtwoord"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        </div>
 
-        <p className="text-center text-sm text-stone-500 mt-8">
-          Don't have an account?{' '}
-          <Link href="/auth/register" className="text-stone-900 font-semibold hover:text-amber-600 transition-colors">
-            Create one
-          </Link>
-        </p>
-      </div>
+        <SubmitButton />
+      </form>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        Nog geen account?{" "}
+        <Link
+          href="/auth/register"
+          className="font-semibold text-emerald-700 transition hover:text-emerald-800"
+        >
+          Account aanmaken
+        </Link>
+      </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Laden...</div>}>
+      <LoginFormContent />
+    </Suspense>
   );
 }

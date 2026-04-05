@@ -1,62 +1,101 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
+import { LogOut } from "lucide-react";
+import { createClient } from "../../lib/supabase/server";
+import { signOut } from "../../lib/actions/auth";
 
-export default function Navbar() {
+export default async function Navbar() {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isLoggedIn = !!user;
+
   return (
-    <header className="border-b border-stone-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Image
-            src="/logo.png"
-            alt="HuisDirect"
-            width={40}
-            height={40}
-            className="h-8 w-auto sm:h-10"
-            priority
-          />
-          <span className="truncate text-xl font-bold text-stone-900 sm:text-2xl">
-            HuisDirect
-          </span>
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-24 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <Image
+              src="/logo.png"
+              alt="HuisDirect"
+              width={56}
+              height={56}
+              className="h-full w-full object-contain"
+            />
+          </div>
+
+          <div>
+            <div className="text-[2rem] font-semibold leading-none tracking-tight text-slate-900">
+              HuisDirect
+            </div>
+            <div className="mt-1 text-sm font-medium uppercase tracking-[0.28em] text-emerald-600">
+              Zonder makelaar
+            </div>
+          </div>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
-          <nav className="flex items-center gap-6 text-sm font-medium text-stone-700">
-            <Link href="/hoe-werkt-het" className="transition hover:text-stone-900">
-              Hoe het werkt
-            </Link>
-            <Link href="/listings" className="transition hover:text-stone-900">
-              Woningen
-            </Link>
-            <Link href="/auth/login" className="transition hover:text-stone-900">
-              Inloggen
-            </Link>
-          </nav>
-
+        <nav className="hidden items-center gap-8 md:flex">
           <Link
-            href="/listings/new"
-            className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
+            href="/listings"
+            className="text-lg font-medium text-slate-700 transition hover:text-slate-900"
           >
-            Plaats je woning
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-2 md:hidden">
-          <Link
-            href="/auth/login"
-            className="inline-flex items-center justify-center rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
-          >
-            Inloggen
+            Aanbod
           </Link>
 
           <Link
-            href="/listings/new"
-            className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
+            href="/hoe-het-werkt"
+            className="text-lg font-medium text-slate-700 transition hover:text-slate-900"
           >
-            Plaatsen
+            Hoe het werkt
           </Link>
-        </div>
+
+          {isLoggedIn ? (
+            <>
+<Link
+  href="/dashboard"
+  className="text-lg font-medium text-slate-700 transition hover:text-slate-900"
+>
+  Mijn account
+</Link>
+
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 text-lg font-medium text-slate-700 transition hover:text-slate-900"
+                >
+                  Uitloggen
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+
+              <Link
+                href="/listings/new"
+                className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+              >
+                Plaats woning
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/auth/login"
+                className="text-lg font-medium text-slate-700 transition hover:text-slate-900"
+              >
+                Inloggen
+              </Link>
+
+              <Link
+                href="/auth/register"
+                className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+              >
+                Plaats woning
+              </Link>
+            </>
+          )}
+        </nav>
       </div>
     </header>
   );

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getListings } from "../../lib/actions/listings";
 import ListingGrid from "../../components/listings/ListingGrid";
+import HeroCalculator from "../../components/home/HeroCalculator";
 
 const FEATURES = [
   {
@@ -31,8 +32,8 @@ const FEATURES = [
 ];
 
 export default async function HomePage() {
-  const featuredListings = await getListings(6, true).catch(() => []);
-  const recentListings = await getListings(6).catch(() => []);
+  const featuredListings = await getListings(6, true);
+  const recentListings = await getListings(6);
 
   return (
     <div className="bg-white">
@@ -55,7 +56,7 @@ export default async function HomePage() {
               Verkoop je huis zonder makelaar
             </span>
 
-            <h1 className="font-display text-4xl font-bold leading-tight md:text-6xl md:leading-[1.02]">
+            <h1 className="font-sans text-4xl font-bold leading-tight md:text-6xl md:leading-[1.02]">
               Bespaar gemiddeld
               <br />
               <span className="text-green-400">duizenden euro&apos;s</span> op
@@ -67,7 +68,7 @@ export default async function HomePage() {
               regie over de verkoop.
             </p>
 
-            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <Link
                 href="/auth/register"
                 className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-green-600 px-6 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-green-700 active:scale-[0.98]"
@@ -84,6 +85,8 @@ export default async function HomePage() {
               </Link>
             </div>
 
+            <HeroCalculator />
+
             <p className="mt-3 text-sm text-stone-300">
               Gratis plaatsen. Geen verplichtingen.
             </p>
@@ -99,7 +102,7 @@ export default async function HomePage() {
                 <Home className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-display text-xl font-bold text-stone-900">
+                <h3 className="font-sans text-xl font-bold text-stone-900">
                   Bepaal je prijs
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">
@@ -114,7 +117,7 @@ export default async function HomePage() {
                 <Megaphone className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-display text-xl font-bold text-stone-900">
+                <h3 className="font-sans text-xl font-bold text-stone-900">
                   Wij publiceren je huis
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">
@@ -128,7 +131,7 @@ export default async function HomePage() {
                 <Users className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-display text-xl font-bold text-stone-900">
+                <h3 className="font-sans text-xl font-bold text-stone-900">
                   Ontvang biedingen
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">
@@ -147,7 +150,7 @@ export default async function HomePage() {
               <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-stone-500">
                 Uitgelicht
               </p>
-              <h2 className="font-display text-3xl font-bold text-stone-900 md:text-4xl">
+              <h2 className="font-sans text-3xl font-bold text-stone-900 md:text-4xl">
                 Uitgelichte woningen
               </h2>
             </div>
@@ -181,7 +184,7 @@ export default async function HomePage() {
               <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-stone-500">
                 Nieuw aanbod
               </p>
-              <h2 className="font-display text-3xl font-bold text-stone-900 md:text-4xl">
+              <h2 className="font-sans text-3xl font-bold text-stone-900 md:text-4xl">
                 Recent geplaatste woningen
               </h2>
             </div>
@@ -213,7 +216,7 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="mb-14 text-center">
-          <h2 className="font-display text-3xl font-bold text-stone-900 md:text-4xl">
+          <h2 className="font-sans text-3xl font-bold text-stone-900 md:text-4xl">
             Waarom kiezen voor HuisDirect?
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-stone-500">
@@ -230,7 +233,7 @@ export default async function HomePage() {
               <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50">
                 <feature.icon className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="font-display text-xl font-bold text-stone-900">
+              <h3 className="font-sans text-xl font-bold text-stone-900">
                 {feature.title}
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-stone-500">
@@ -243,7 +246,7 @@ export default async function HomePage() {
 
       <section className="bg-stone-900 text-white">
         <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl font-bold md:text-5xl">
+          <h2 className="font-sans text-3xl font-bold md:text-5xl">
             Klaar om je woning te plaatsen?
           </h2>
 

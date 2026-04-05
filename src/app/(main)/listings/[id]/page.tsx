@@ -1,232 +1,206 @@
-import { listings } from "../../../../data/listings";
 import { notFound } from "next/navigation";
-import ListingImageCarousel from "../../../../components/listings/ListingImageCarousel";
-import ListingSidebarCard from "../../../../components/listings/ListingSidebarCard";
-import ListingLeadForm from "../../../../components/listings/ListingLeadForm";
-import MobileStickyCTA from "../../../../components/listings/MobileStickyCTA";
-import {
-  BedDouble,
-  Ruler,
-  Home,
-  Calendar,
-  Leaf,
-  Map,
-  Euro,
-  MapPin,
-} from "lucide-react";
+import { MapPin } from "lucide-react";
+import { createClient } from "../../../../lib/supabase/server";
 
-type Props = {
+import ListingImageCarousel from "../../../../components/listings/ListingImageCarousel";
+import ListingHighlights from "../../../../components/listings/ListingHighlights";
+import ListingLeadForm from "../../../../components/listings/ListingLeadForm";
+import ListingSidebarCard from "../../../../components/listings/ListingSidebarCard";
+import ListingMap from "../../../../components/listings/ListingMap";
+
+type ListingPageProps = {
   params: {
     id: string;
   };
 };
 
-function formatPrice(price?: number | string) {
-  if (price === undefined || price === null || price === "") {
-    return "Prijs op aanvraag";
+function formatPropertyType(value: string | null) {
+  switch (value) {
+    case "eengezinswoning":
+      return "Eengezinswoning";
+    case "appartement":
+      return "Appartement";
+    case "vrijstaande_woning":
+      return "Vrijstaande woning";
+    case "twee_onder_een_kap":
+      return "Twee-onder-een-kap";
+    case "hoekwoning":
+      return "Hoekwoning";
+    case "bungalow":
+      return "Bungalow";
+    default:
+      return value || "Woning";
   }
-
-  if (typeof price === "number") {
-    return new Intl.NumberFormat("nl-NL", {
-      style: "currency",
-      currency: "EUR",
-      maximumFractionDigits: 0,
-    }).format(price);
-  }
-
-  return price;
 }
 
-export default function ListingDetailPage({ params }: Props) {
-  const listing = listings.find((l) => l.id === params.id);
-
-  if (!listing) {
-    return notFound();
+function renderDescription(description?: string | null) {
+  if (!description || !description.trim()) {
+    return <p>Geen omschrijving beschikbaar.</p>;
   }
 
-  const title = `${listing.propertyType} in ${listing.city}`;
-  const price = listing.price;
-  const bedrooms = listing.rooms;
-  const livingArea = listing.size;
-  const plotArea = listing.plotSize;
-  const propertyType = listing.propertyType;
-  const yearBuilt = listing.yearBuilt;
-  const energyLabel = listing.energyLabel;
-  const description = listing.description;
-  const address = listing.address;
-  const images = listing.images;
-  const mapQuery = encodeURIComponent(address || listing.city || "Nederland");
+  const lines = description
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
 
-  const contactPhone = "+31600000000";
-  const contactEmail = "info@huisdirect.nl";
+  const elements: React.ReactNode[] = [];
+  let bulletBuffer: string[] = [];
+  let paragraphBuffer: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraphBuffer.length > 0) {
+      elements.push(
+        <p key={`p-${elements.length}`}>
+          {paragraphBuffer.join(" ")}
+        </p>
+      );
+      paragraphBuffer = [];
+    }
+  };
+
+  const flushBullets = () => {
+    if (bulletBuffer.length > 0) {
+      elements.push(
+        <ul
+          key={`ul-${elements.length}`}
+          className="space-y-2 pl-5"
+        >
+          {bulletBuffer.map((item, index) => (
+            <li key={`li-${elements.length}-${index}`} className="list-disc">
+              {item}
+            </li>
+          ))}
+        </ul>
+      );
+      bulletBuffer = [];
+    }
+  };
+
+  for (const line of lines) {
+    const isBullet =
+      line.startsWith("- ") ||
+      line.startsWith("• ") ||
+      line.startsWith("* ");
+
+    if (isBullet) {
+      flushParagraph();
+      bulletBuffer.push(line.replace(/^[-•*]\s+/, ""));
+    } else {
+      flushBullets();
+      paragraphBuffer.push(line);
+    }
+  }
+
+  flushParagraph();
+  flushBullets();
+
+  return elements;
+}
+
+export default async function ListingDetailPage({
+  params,
+}: ListingPageProps) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: listing, error } = await supabase
+    .from("listings")
+    .select("*, listing_images(*)")
+    .eq("id", params.id)
+    .single();
+
+  if (error || !listing) {
+    notFound();
+  }
+
+  if (listing.status !== "active" && listing.user_id !== user?.id) {
+    notFound();
+  }
+
+  const sortedImages = (listing.listing_images || []).sort((a: any, b: any) => {
+    if (a.is_cover) return -1;
+    if (b.is_cover) return 1;
+    return (a.position ?? 0) - (b.position ?? 0);
+  });
+
+  const galleryImages =
+    sortedImages.length > 0
+      ? sortedImages.map((img: any) => img.public_url)
+      : [
+          "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1400&q=80",
+        ];
 
   return (
-    <>
-      <div className="bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6 lg:px-8 lg:pb-8">
-          <div className="mb-8">
-            <div className="mb-3 flex items-center gap-2 text-sm text-stone-500">
-              <MapPin className="h-4 w-4" />
-              <span>{address}</span>
-            </div>
+    <main className="min-h-screen bg-neutral-50 pb-16">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold text-neutral-900 sm:text-4xl">
+            {listing.title}
+          </h1>
 
-            <h1 className="text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
-              {title}
-            </h1>
+          <div className="mt-2 flex items-center gap-2 text-neutral-600">
+            <MapPin className="h-5 w-5 shrink-0" />
+            <span className="text-lg">
+              {listing.street ? `${listing.street}, ` : ""}
+              {listing.city}
+            </span>
+          </div>
+        </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-stone-600">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
-                {formatPrice(price)}
-              </span>
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="min-w-0 space-y-10">
+            <ListingImageCarousel
+              images={galleryImages}
+              title={listing.title || "Woning"}
+            />
 
-              <span className="rounded-full bg-stone-100 px-3 py-1">
-                {propertyType}
-              </span>
+            <ListingHighlights
+              propertyType={formatPropertyType(listing.property_type)}
+              yearBuilt={listing.year_built || 0}
+              energyLabel={listing.energy_label || "-"}
+              plotSize={listing.plot_size || 0}
+            />
 
-              <span className="rounded-full bg-stone-100 px-3 py-1">
-                Energielabel {energyLabel}
-              </span>
-            </div>
+            <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+              <h2 className="mb-4 text-2xl font-semibold text-neutral-900">
+                Omschrijving
+              </h2>
+
+              <div className="space-y-4 text-base leading-8 text-neutral-700">
+                {renderDescription(listing.description)}
+              </div>
+            </section>
+
+            {listing.latitude && listing.longitude && (
+              <ListingMap
+                address={listing.street || "Onbekend adres"}
+                city={listing.city || ""}
+                lat={listing.latitude}
+                lng={listing.longitude}
+              />
+            )}
+
+            <ListingLeadForm
+              listingId={listing.id}
+              listingTitle={listing.title || ""}
+            />
           </div>
 
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="space-y-10">
-              <ListingImageCarousel images={images} title={title} />
-
-              <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-2xl font-semibold text-stone-900">
-                  Kenmerken
-                </h2>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4">
-                    <Euro className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">Vraagprijs</p>
-                      <p className="font-semibold text-stone-900">
-                        {formatPrice(price)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4">
-                    <BedDouble className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">Slaapkamers</p>
-                      <p className="font-semibold text-stone-900">
-                        {bedrooms}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4">
-                    <Ruler className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">Woonoppervlakte</p>
-                      <p className="font-semibold text-stone-900">
-                        {livingArea} m²
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4">
-                    <Map className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">
-                        Perceeloppervlakte
-                      </p>
-                      <p className="font-semibold text-stone-900">
-                        {plotArea} m²
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4">
-                    <Calendar className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">Bouwjaar</p>
-                      <p className="font-semibold text-stone-900">
-                        {yearBuilt}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4">
-                    <Leaf className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">Energielabel</p>
-                      <p className="font-semibold text-stone-900">
-                        {energyLabel}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 rounded-2xl bg-stone-50 p-4 sm:col-span-2">
-                    <Home className="h-5 w-5 text-emerald-700" />
-                    <div>
-                      <p className="text-sm text-stone-500">Woningtype</p>
-                      <p className="font-semibold text-stone-900">
-                        {propertyType}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-2xl font-semibold text-stone-900">
-                  Omschrijving
-                </h2>
-
-                <div className="space-y-4 leading-8 text-stone-700">
-                  {description.split("\n\n").map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-2xl font-semibold text-stone-900">
-                  Locatie
-                </h2>
-
-                <div className="mb-4 flex items-start gap-3 text-stone-700">
-                  <MapPin className="mt-1 h-5 w-5 text-emerald-700" />
-                  <p>{address}</p>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-stone-200">
-                  <iframe
-                    title={`Kaart van ${title}`}
-                    src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
-                    width="100%"
-                    height="420"
-                    loading="lazy"
-                    className="block w-full"
-                  />
-                </div>
-              </section>
-
-              <div id="lead-form">
-                <ListingLeadForm listingTitle={title} />
-              </div>
-            </div>
-
+          <div className="min-w-0">
             <ListingSidebarCard
-              price={price}
-              bedrooms={bedrooms}
-              livingArea={livingArea}
-              plotArea={plotArea}
-              yearBuilt={yearBuilt}
-              energyLabel={energyLabel}
-              phone={contactPhone}
-              email={contactEmail}
+              price={listing.asking_price}
+              bedrooms={listing.bedrooms || undefined}
+              livingArea={listing.living_area || undefined}
+              plotArea={listing.plot_size || undefined}
+              yearBuilt={listing.year_built || undefined}
+              energyLabel={listing.energy_label || undefined}
             />
           </div>
         </div>
       </div>
-
-      <MobileStickyCTA />
-    </>
+    </main>
   );
 }
