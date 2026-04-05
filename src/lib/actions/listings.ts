@@ -278,3 +278,27 @@ export async function deleteListing(id: string) {
   revalidatePath('/dashboard');
   revalidatePath('/listings');
 }
+
+export async function updateMarketingBudget(listingId: string, budget: number): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Niet ingelogd.');
+
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      marketing_budget: budget,
+      marketing_active: true,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', listingId)
+    .eq('user_id', user.id);
+
+  if (error) throw error;
+
+  revalidatePath('/dashboard');
+  revalidatePath(`/listings/${listingId}`);
+}
