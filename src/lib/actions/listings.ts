@@ -112,14 +112,20 @@ function slugify(text: string): string {
 
 export async function createDraftListing(formData: FormData): Promise<void> {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) throw new Error('Je bent niet ingelogd.');
+  if (!user) {
+    throw new Error('Je bent niet ingelogd.');
+  }
 
   const title = String(formData.get('title') || '').trim();
-  if (!title) throw new Error('Geef in ieder geval een werk- of projecttitel op.');
+
+  if (!title) {
+    throw new Error('Geef in ieder geval een werk- of projecttitel op.');
+  }
 
   const { data, error } = await supabase
     .from('listings')
@@ -130,13 +136,22 @@ export async function createDraftListing(formData: FormData): Promise<void> {
       status: 'draft',
       is_featured: false,
     })
-    .select()
-    .single();
+    .select();
 
-  if (error) throw new Error(`Opslaan mislukt: ${error.message}`);
+  if (error) {
+    throw new Error(`Opslaan mislukt: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Woning kon niet worden aangemaakt.');
+  }
+
+  const newListing = data[0];
 
   revalidatePath('/dashboard');
-  redirect(`/listings/${data.id}/edit`);
+  revalidatePath('/dashboard/listings');
+
+  redirect(`/listings/${newListing.id}/edit`);
 }
 
 export async function updateDraftListing(
@@ -145,6 +160,7 @@ export async function updateDraftListing(
   formData: FormData
 ): Promise<{ error?: string; success?: boolean } | void> {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -175,22 +191,34 @@ export async function updateDraftListing(
   if (street !== null) updates.street = String(street).trim() || null;
 
   const livingArea = formData.get('living_area');
-  if (livingArea !== null) updates.living_area = parseInt(livingArea as string, 10) || null;
+  if (livingArea !== null) {
+    updates.living_area = parseInt(livingArea as string, 10) || null;
+  }
 
   const plotSize = formData.get('plot_size');
-  if (plotSize !== null) updates.plot_size = parseInt(plotSize as string, 10) || null;
+  if (plotSize !== null) {
+    updates.plot_size = parseInt(plotSize as string, 10) || null;
+  }
 
   const bedrooms = formData.get('bedrooms');
-  if (bedrooms !== null) updates.bedrooms = parseInt(bedrooms as string, 10) || null;
+  if (bedrooms !== null) {
+    updates.bedrooms = parseInt(bedrooms as string, 10) || null;
+  }
 
   const energyLabel = formData.get('energy_label');
-  if (energyLabel !== null) updates.energy_label = String(energyLabel).trim() || null;
+  if (energyLabel !== null) {
+    updates.energy_label = String(energyLabel).trim() || null;
+  }
 
   const yearBuilt = formData.get('year_built');
-  if (yearBuilt !== null) updates.year_built = parseInt(yearBuilt as string, 10) || null;
+  if (yearBuilt !== null) {
+    updates.year_built = parseInt(yearBuilt as string, 10) || null;
+  }
 
   const propType = formData.get('property_type');
-  if (propType !== null) updates.property_type = String(propType).trim() || null;
+  if (propType !== null) {
+    updates.property_type = String(propType).trim() || null;
+  }
 
   const { error } = await supabase
     .from('listings')
@@ -198,9 +226,12 @@ export async function updateDraftListing(
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) return { error: `Concept opslaan mislukt: ${error.message}` };
+  if (error) {
+    return { error: `Concept opslaan mislukt: ${error.message}` };
+  }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${id}`);
   revalidatePath(`/listings/${id}/edit`);
 
@@ -209,6 +240,7 @@ export async function updateDraftListing(
 
 export async function attemptPublishListing(id: string): Promise<void> {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -216,32 +248,66 @@ export async function attemptPublishListing(id: string): Promise<void> {
   if (!user) throw new Error('Niet ingelogd.');
 
   const [listingRes, imagesRes] = await Promise.all([
-    supabase.from('listings').select('*').eq('id', id).eq('user_id', user.id).single(),
+    supabase
+      .from('listings')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single(),
     supabase.from('listing_images').select('*').eq('listing_id', id),
   ]);
 
-  if (listingRes.error || !listingRes.data) throw new Error('Woning niet gevonden.');
+  if (listingRes.error || !listingRes.data) {
+    throw new Error('Woning niet gevonden.');
+  }
 
   const listing = listingRes.data;
   const images = imagesRes.data || [];
 
-  if (!listing.title || listing.title.length < 5) throw new Error('Titel mist.');
-  if (!listing.asking_price || listing.asking_price < 100) throw new Error('Vraagprijs mist.');
-  if (!listing.description || listing.description.length < 50) throw new Error('Beschrijving te kort.');
-  if (!listing.city || !listing.street) throw new Error('Adres incompleet.');
-  if (!listing.property_type) throw new Error('Woningtype mist.');
+  if (!listing.title || listing.title.length < 5) {
+    throw new Error('Titel mist.');
+  }
 
-  if (images.length === 0) throw new Error('Upload minimaal 1 foto.');
+  if (!listing.asking_price || listing.asking_price < 100) {
+    throw new Error('Vraagprijs mist.');
+  }
+
+  if (!listing.description || listing.description.length < 50) {
+    throw new Error('Beschrijving te kort.');
+  }
+
+  if (!listing.city || !listing.street) {
+    throw new Error('Adres incompleet.');
+  }
+
+  if (!listing.property_type) {
+    throw new Error('Woningtype mist.');
+  }
+
+  if (images.length === 0) {
+    throw new Error('Upload minimaal 1 foto.');
+  }
 
   const hasCover = images.some((img: any) => img.is_cover);
-  if (!hasCover) throw new Error('Selecteer een hoofdfoto.');
+  if (!hasCover) {
+    throw new Error('Selecteer een hoofdfoto.');
+  }
 
-  await supabase
+  const { error } = await supabase
     .from('listings')
-    .update({ status: 'active', updated_at: new Date().toISOString() })
-    .eq('id', id);
+    .update({
+      status: 'active',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) {
+    throw new Error(`Publiceren mislukt: ${error.message}`);
+  }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${id}`);
   revalidatePath('/listings');
 
@@ -250,6 +316,7 @@ export async function attemptPublishListing(id: string): Promise<void> {
 
 export async function unpublishListing(id: string): Promise<void> {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -258,29 +325,57 @@ export async function unpublishListing(id: string): Promise<void> {
 
   const { error } = await supabase
     .from('listings')
-    .update({ status: 'draft', updated_at: new Date().toISOString() })
+    .update({
+      status: 'draft',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(`Offline halen mislukt: ${error.message}`);
+  }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${id}`);
   revalidatePath('/listings');
 }
 
-export async function deleteListing(id: string) {
+export async function deleteListing(id: string): Promise<void> {
   const supabase = await createClient();
 
-  const { error } = await supabase.from('listings').delete().eq('id', id);
-  if (error) throw error;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('Niet ingelogd.');
+  }
+
+  const { error } = await supabase
+    .from('listings')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) {
+    throw new Error(`Verwijderen mislukt: ${error.message}`);
+  }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/listings');
   revalidatePath('/listings');
+
+  redirect('/dashboard/listings');
 }
 
-export async function updateMarketingBudget(listingId: string, budget: number): Promise<void> {
+export async function updateMarketingBudget(
+  listingId: string,
+  budget: number
+): Promise<void> {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -292,7 +387,7 @@ export async function updateMarketingBudget(listingId: string, budget: number): 
     .update({
       marketing_budget: budget,
       marketing_active: true,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
     .eq('id', listingId)
     .eq('user_id', user.id);
@@ -300,5 +395,6 @@ export async function updateMarketingBudget(listingId: string, budget: number): 
   if (error) throw error;
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${listingId}`);
 }

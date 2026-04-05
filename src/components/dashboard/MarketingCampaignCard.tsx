@@ -2,309 +2,353 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  ArrowUpRight,
-  Copy,
-  Eye,
-  Send,
-  Share2,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
+import { Copy, Eye, Send, Share2 } from "lucide-react";
 
-type Props = {
+type MarketingCampaignCardProps = {
   listingId: string;
-  siteUrl?: string;
+  budget: number;
+  views: number;
+  marketingActive?: boolean;
+  city?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  slug?: string | null;
 };
 
-type MarketingProjection = {
-  reachLabel: string;
-  boostLabel: string;
-  leadLabel: string;
-  energyLabel: string;
-};
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
-function getMarketingProjection(budget: number): MarketingProjection {
-  if (budget <= 350) {
+function normalizeSegment(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildPublicHousePath({
+  slug,
+  city,
+  street,
+  houseNumber,
+  listingId,
+}: {
+  slug?: string | null;
+  city?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  listingId: string;
+}) {
+  if (slug && slug.trim()) {
+    return `/huis/${slug}`;
+  }
+
+  if (city && street && houseNumber) {
+    return `/huis/${normalizeSegment(city)}/${normalizeSegment(
+      street
+    )}/${normalizeSegment(houseNumber)}`;
+  }
+
+  return `/listings/${listingId}`;
+}
+
+function getEstimatedReachRange(amount: number) {
+  const step = (amount - 250) / 50;
+  const min = 1500 + step * 250;
+  const max = 2500 + step * 450;
+
+  return {
+    min: Math.round(min),
+    max: Math.round(max),
+  };
+}
+
+function getCampaignPsychology(amount: number) {
+  if (amount >= 950) {
     return {
-      reachLabel: "ca. 1.500 - 2.500 extra weergaven",
-      boostLabel: "Goede eerste boost in zichtbaarheid",
-      leadLabel: "Vergroot je kans op de eerste extra aanvragen",
-      energyLabel: "Rustige start",
+      badge: "Maximale zichtbaarheid",
+      title: "Vol inzetten op bereik",
+      text: "Je kiest hier voor maximale exposure en veel herhaling in zichtbaarheid.",
+      progress: 100,
     };
   }
 
-  if (budget <= 650) {
+  if (amount >= 800) {
     return {
-      reachLabel: "ca. 3.500 - 5.500 extra weergaven",
-      boostLabel: "Sterkere zichtbaarheid in een bredere doelgroep",
-      leadLabel: "Meer bereik, meer kans op reacties en bezichtigingen",
-      energyLabel: "Sterk momentum",
+      badge: "Zeer sterk bereik",
+      title: "Dominant zichtbaar in je regio",
+      text: "Serieuze campagne met veel meer herhaling en een duidelijk groter bereik.",
+      progress: 82,
+    };
+  }
+
+  if (amount >= 650) {
+    return {
+      badge: "Sterke boost",
+      title: "Duidelijk meer tractie",
+      text: "Sterke middenzone: genoeg kracht om merkbaar meer aandacht op te bouwen.",
+      progress: 66,
+    };
+  }
+
+  if (amount >= 500) {
+    return {
+      badge: "Slimme keuze",
+      title: "Goede balans tussen kosten en bereik",
+      text: "Vanaf hier voelt marketing voor veel verkopers echt serieus.",
+      progress: 50,
+    };
+  }
+
+  if (amount >= 350) {
+    return {
+      badge: "Veilige start",
+      title: "Rustig opschalen",
+      text: "Prima instap om extra aandacht te creëren zonder direct groot te beginnen.",
+      progress: 34,
     };
   }
 
   return {
-    reachLabel: "ca. 7.500 - 12.000 extra weergaven",
-    boostLabel: "Maximale aandacht voor je woningcampagne",
-    leadLabel: "Grootste kans op extra traffic en nieuwe leads",
-    energyLabel: "Maximaal bereik",
+    badge: "Instapniveau",
+    title: "Eerste extra zichtbaarheid",
+    text: "Logische ondergrens om marketing serieus te starten.",
+    progress: 20,
   };
 }
 
 export default function MarketingCampaignCard({
   listingId,
-  siteUrl,
-}: Props) {
-  const [budget, setBudget] = useState(300);
-
-  const projection = useMemo(
-    () => getMarketingProjection(budget),
-    [budget]
+  budget,
+  views,
+  marketingActive = false,
+  city,
+  street,
+  houseNumber,
+  slug,
+}: MarketingCampaignCardProps) {
+  const [copied, setCopied] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState(
+    Math.min(1000, Math.max(250, budget || 300))
   );
 
-  const shareUrl = `${siteUrl || ""}/listings/${listingId}`;
+  const publicPath = useMemo(
+    () =>
+      buildPublicHousePath({
+        slug,
+        city,
+        street,
+        houseNumber,
+        listingId,
+      }),
+    [slug, city, street, houseNumber, listingId]
+  );
+
+  const absoluteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}${publicPath}`
+      : publicPath;
+
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
-    `Bekijk mijn woning op HuisDirect: ${shareUrl}`
+    `Bekijk mijn woning op HuisDirect: ${absoluteUrl}`
   )}`;
 
-  const handleCopy = async () => {
+  const estimatedReach = useMemo(
+    () => getEstimatedReachRange(selectedBudget),
+    [selectedBudget]
+  );
+
+  const campaign = useMemo(
+    () => getCampaignPsychology(selectedBudget),
+    [selectedBudget]
+  );
+
+  async function handleCopyLink() {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(absoluteUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      // stil falen is hier prima
+      setCopied(false);
     }
-  };
+  }
 
   return (
     <section
       id="marketing"
-      className="mb-8 rounded-3xl border border-emerald-200 bg-white p-8 shadow-[0_10px_40px_rgba(5,150,105,0.08)]"
+      className="mb-8 rounded-[1.75rem] border border-emerald-100 bg-white p-4 shadow-sm sm:p-5 lg:p-6"
     >
-      <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-            <Sparkles className="h-3.5 w-3.5" />
-            Je woning staat live
-          </div>
-
-          <h2 className="mt-5 text-3xl font-semibold tracking-tight text-neutral-900">
-            Geef je woning nu extra bereik
-          </h2>
-
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
-            Je woning staat online. Dit is nu de slimste vervolgstap om meer
-            aandacht te trekken. Hoe meer bereik je inkoopt, hoe groter de kans
-            dat extra kijkers doorklikken, reageren en een bezichtiging
-            aanvragen.
-          </p>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                <Eye className="h-4 w-4 text-emerald-600" />
-                Meer zichtbaarheid
-              </div>
-              <p className="mt-2 text-sm text-neutral-500">
-                Bereik extra woningzoekers buiten je standaard advertentie.
-              </p>
+      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.9fr]">
+        <div className="rounded-[1.5rem] border border-stone-200 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-emerald-600">
+              <Share2 className="h-4.5 w-4.5" />
             </div>
 
-            <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
-                Meer kans op leads
-              </div>
-              <p className="mt-2 text-sm text-neutral-500">
-                Meer bereik vergroot de kans op reacties en bezichtigingen.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                <ArrowUpRight className="h-4 w-4 text-emerald-600" />
-                Direct opschalen
-              </div>
-              <p className="mt-2 text-sm text-neutral-500">
-                Kies simpel zelf hoeveel extra aandacht je wilt inkopen.
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-semibold tracking-tight text-stone-950">
+                Jij bent je eigen makelaar
+              </h3>
+              <p className="max-w-2xl text-sm leading-6 text-stone-600">
+                Verstuur je woninglink naar vrienden, familie, collega&apos;s en je
+                netwerk. Elke klik kan zorgen voor extra aandacht en nieuwe
+                aanvragen.
               </p>
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-neutral-200 bg-neutral-50 p-6">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm ring-1 ring-inset ring-neutral-200">
-                <Share2 className="h-5 w-5" />
-              </div>
+          <div className="mt-4 rounded-[1rem] border border-stone-200 bg-stone-50/60 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">
+              Jouw woninglink
+            </p>
+            <p className="mt-2 break-all text-base text-stone-800">{publicPath}</p>
+          </div>
 
-              <div className="min-w-0">
-                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-                  Jij bent je eigen makelaar
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-500">
-                  Verstuur je woninglink naar vrienden, familie, collega’s en je
-                  netwerk. Elke klik kan zorgen voor extra aandacht en nieuwe
-                  aanvragen.
-                </p>
-              </div>
-            </div>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="inline-flex min-h-[60px] items-center justify-center gap-2.5 rounded-[1rem] border border-stone-200 bg-white px-3 py-3 text-sm font-medium text-stone-800 transition hover:border-emerald-200 hover:bg-emerald-50"
+            >
+              <Copy className="h-4.5 w-4.5 text-stone-500" />
+              <span>{copied ? "Gekopieerd" : "Kopieer link"}</span>
+            </button>
 
-            <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400">
-                Jouw woninglink
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-[60px] items-center justify-center gap-2.5 rounded-[1rem] border border-stone-200 bg-white px-3 py-3 text-sm font-medium text-stone-800 transition hover:border-emerald-200 hover:bg-emerald-50"
+            >
+              <Send className="h-4.5 w-4.5 text-stone-500" />
+              <span>Deel via WhatsApp</span>
+            </a>
+
+            <Link
+              href={publicPath}
+              target="_blank"
+              className="inline-flex min-h-[60px] items-center justify-center gap-2.5 rounded-[1rem] border border-stone-200 bg-white px-3 py-3 text-sm font-medium text-stone-800 transition hover:border-emerald-200 hover:bg-emerald-50"
+            >
+              <Eye className="h-4.5 w-4.5 text-stone-500" />
+              <span>Bekijk advertentie</span>
+            </Link>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-[1rem] border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                Kliks via gedeelde link
               </p>
-              <p className="mt-2 break-all text-sm text-neutral-700">
-                {shareUrl}
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">
+                {views}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-emerald-900/80">
+                Dit zijn echte opens van je woningpagina via de gedeelde link.
               </p>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-              >
-                <Copy className="h-4 w-4" />
-                Kopieer link
-              </button>
-
-              <Link
-                href={whatsappUrl}
-                target="_blank"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-              >
-                <Send className="h-4 w-4" />
-                Deel via WhatsApp
-              </Link>
-
-              <Link
-                href={`/listings/${listingId}`}
-                target="_blank"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-              >
-                <Eye className="h-4 w-4" />
-                Bekijk advertentie
-              </Link>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-emerald-700">
-                  Kliks via gedeelde link
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                  0
-                </p>
-                <p className="mt-1 text-sm text-emerald-800">
-                  Deze teller koppelen we straks live aan de backend.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400">
-                  Waarom delen werkt
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-                  Hoe vaker je jouw woning actief deelt, hoe meer extra ogen je
-                  advertentie zien. Dat geeft direct momentum.
-                </p>
-              </div>
+            <div className="rounded-[1rem] border border-stone-200 bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">
+                Waarom delen werkt
+              </p>
+              <p className="mt-2 text-sm leading-7 text-stone-700">
+                Hoe vaker je jouw woning actief deelt, hoe meer extra ogen je
+                advertentie zien en hoe sneller je momentum opbouwt.
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-              Kies zelf je marketingbudget
-            </h3>
-            <p className="mt-1 text-sm text-neutral-500">
-              Sleep direct met de slider en zie meteen wat meer budget kan doen.
+        <div className="rounded-[1.5rem] border border-stone-200 p-4 sm:p-5">
+          <div className="rounded-[1rem] border border-emerald-100 bg-emerald-50 px-4 py-4">
+            <p className="text-sm font-medium text-emerald-800">
+              Geschat extra bereik met campagne
+            </p>
+            <p className="mt-1.5 text-[2rem] font-semibold leading-tight tracking-tight text-stone-950">
+              ca. {estimatedReach.min.toLocaleString("nl-NL")} -{" "}
+              {estimatedReach.max.toLocaleString("nl-NL")} extra weergaven
             </p>
           </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-neutral-500">Budget</span>
-              <span className="text-2xl font-semibold tracking-tight text-neutral-900">
-                € {budget}
+          <div className="mt-3 rounded-[1rem] border border-stone-200 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">
+                Marketingbudget
+              </p>
+              <span className="text-base font-semibold text-stone-950">
+                {formatCurrency(selectedBudget)}
               </span>
             </div>
 
-            <div className="mt-5">
-              <input
-                type="range"
-                min="250"
-                max="1000"
-                step="50"
-                value={budget}
-                onChange={(e) => setBudget(Number(e.target.value))}
-                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-emerald-600"
+            <input
+              type="range"
+              min={250}
+              max={1000}
+              step={50}
+              value={selectedBudget}
+              onChange={(event) => setSelectedBudget(Number(event.target.value))}
+              className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-stone-200 accent-emerald-600"
+            />
+
+            <div className="mt-2.5 flex items-center justify-between text-xs text-stone-500">
+              <span>€250</span>
+              <span>€500</span>
+              <span>€750</span>
+              <span>€1000</span>
+            </div>
+
+            <button
+              type="button"
+              className="mt-4 inline-flex min-h-[56px] w-full items-center justify-center rounded-[1rem] bg-emerald-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-emerald-700"
+            >
+              {marketingActive
+                ? `Campagne actief · ${formatCurrency(selectedBudget)}`
+                : `Activeer campagne van ${formatCurrency(selectedBudget)}`}
+            </button>
+
+            <p className="mt-3 text-sm leading-6 text-stone-600">
+              Vanaf ongeveer €500 voelt een campagne voor veel verkopers al
+              serieus, terwijl hogere bedragen zorgen voor meer herhaling en
+              zichtbaarheid.
+            </p>
+          </div>
+
+          <div className="mt-3 rounded-[1rem] border border-stone-200 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">
+                Campagneniveau
+              </p>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                {campaign.badge}
+              </span>
+            </div>
+
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-200">
+              <div
+                className="h-full rounded-full bg-emerald-600 transition-all duration-300"
+                style={{ width: `${campaign.progress}%` }}
               />
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs text-neutral-400">
-              <span>€250</span>
-              <span>€1000</span>
-            </div>
+            <h4 className="mt-3 text-xl font-semibold tracking-tight text-stone-950">
+              {campaign.title}
+            </h4>
+
+            <p className="mt-1.5 text-sm leading-6 text-stone-600">
+              {campaign.text}
+            </p>
           </div>
 
-          <div className="mt-4 space-y-3">
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-emerald-700">
-                Geschat extra bereik
-              </p>
-              <p className="mt-2 text-lg font-semibold text-neutral-900">
-                {projection.reachLabel}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400">
-                Campagne-effect
-              </p>
-              <p className="mt-2 text-sm font-medium text-neutral-900">
-                {projection.boostLabel}
-              </p>
-              <p className="mt-2 text-sm text-neutral-500">
-                {projection.leadLabel}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400">
-                  Campagneniveau
-                </p>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                  {projection.energyLabel}
-                </span>
-              </div>
-
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200">
-                <div
-                  className="h-full rounded-full bg-emerald-600 transition-all"
-                  style={{
-                    width: `${((budget - 250) / (1000 - 250)) * 100}%`,
-                  }}
-                />
-              </div>
-
-              <p className="mt-3 text-sm leading-relaxed text-neutral-600">
-                Meer budget voelt hier direct als meer zichtbaarheid. Dat maakt
-                de keuze eenvoudiger en motiveert om door te schuiven.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="mt-5 w-full rounded-2xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white transition hover:bg-emerald-700"
-          >
-            Activeer campagne van € {budget}
-          </button>
-
-          <p className="mt-3 text-center text-xs leading-relaxed text-neutral-500">
-            Straks koppelen we dit aan echte campagne-opslag en live resultaten.
+          <p className="mt-3 text-xs leading-5 text-stone-500">
+            Echte campagne-opslag koppelen we hierna aan de database. De slider
+            en impactweergave werken nu alvast volledig in de UI.
           </p>
         </div>
       </div>

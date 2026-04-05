@@ -19,10 +19,109 @@ import {
   Megaphone,
   Users,
   Settings,
+  Building2,
+  Plus,
 } from "lucide-react";
+
+type Listing = {
+  id: string;
+  title?: string | null;
+  image?: string | null;
+  city?: string | null;
+  street?: string | null;
+  house_number?: string | null;
+  slug?: string | null;
+  asking_price?: number | null;
+  description?: string | null;
+  property_type?: string | null;
+  status?: string | null;
+  listing_images?: Array<{
+    id: string;
+    public_url?: string | null;
+    is_cover?: boolean | null;
+    position?: number | null;
+  }> | null;
+  marketing_budget?: number | null;
+  views?: number | null;
+  marketing_active?: boolean | null;
+  created_at?: string | null;
+};
+
+function normalizeSegment(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildPublicHousePath({
+  slug,
+  city,
+  street,
+  houseNumber,
+  listingId,
+}: {
+  slug?: string | null;
+  city?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  listingId: string;
+}) {
+  if (slug && slug.trim()) {
+    return `/huis/${slug}`;
+  }
+
+  if (city && street && houseNumber) {
+    return `/huis/${normalizeSegment(city)}/${normalizeSegment(
+      street
+    )}/${normalizeSegment(houseNumber)}`;
+  }
+
+  return `/listings/${listingId}`;
+}
+
+function getPrimaryListing(listings: Listing[]) {
+  if (listings.length === 0) return null;
+
+  const activeListing = listings.find((listing) => listing.status === "active");
+  if (activeListing) return activeListing;
+
+  const sorted = [...listings].sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  return sorted[0];
+}
+
+function getCompletionPercentage(listing: Listing) {
+  const hasPhotos = Boolean(
+    listing.listing_images && listing.listing_images.length > 0
+  );
+
+  const hasDetails = Boolean(
+    listing.description &&
+      listing.description.length > 20 &&
+      listing.property_type &&
+      listing.city
+  );
+
+  const hasPrice = Boolean(
+    listing.asking_price && Number(listing.asking_price) > 0
+  );
+
+  const total = [hasPhotos, hasDetails, hasPrice].filter(Boolean).length;
+
+  return Math.round((total / 3) * 100);
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -31,18 +130,19 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
-  const userListings = await getUserListings(user.id);
-  const validListings = userListings.filter((l: any) => l.id);
+  const userListings: Listing[] = await getUserListings(user.id);
+  const validListings = (userListings ?? []).filter((listing) => listing?.id);
+
   const leads = await getUserLeads(user.id);
-
-  if (validListings.length > 1) {
-    throw new Error(
-      "Meerdere woningen per gebruiker nog niet ondersteund in dit model."
-    );
-  }
-
-  const dbListing = validListings[0];
   const recentLeads = leads.slice(0, 3);
+
+  const totalListings = validListings.length;
+  const hasMultipleListings = totalListings > 1;
+  const activeListingsCount = validListings.filter(
+    (listing) => listing.status === "active"
+  ).length;
+
+  const dbListing = getPrimaryListing(validListings);
 
   if (!dbListing) {
     return (
@@ -137,6 +237,14 @@ export default async function DashboardPage() {
     price: dbListing.asking_price || null,
   };
 
+  const publicListingPath = buildPublicHousePath({
+    slug: dbListing.slug,
+    city: dbListing.city,
+    street: dbListing.street,
+    houseNumber: dbListing.house_number,
+    listingId: dbListing.id,
+  });
+
   const checklist = [
     {
       title: "Woningfoto's",
@@ -166,7 +274,6 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-neutral-50 px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        {/* HEADER */}
         <section className="mb-8 grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] sm:p-7">
             <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
@@ -193,7 +300,9 @@ export default async function DashboardPage() {
 
             <div className="mt-5 border-t border-neutral-100 pt-5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-neutral-500">Woningstatus</span>
+                <span className="text-neutral-500">
+                  {hasMultipleListings ? "Focuswoning" : "Woningstatus"}
+                </span>
                 <span className="font-medium text-neutral-900">
                   {isLive ? "Live" : "Concept"}
                 </span>
@@ -205,19 +314,82 @@ export default async function DashboardPage() {
                   {completionPercentage}%
                 </span>
               </div>
+
+              {hasMultipleListings && (
+                <>
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">Woningen</span>
+                    <span className="font-medium text-neutral-900">
+                      {totalListings}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">Live</span>
+                    <span className="font-medium text-neutral-900">
+                      {activeListingsCount}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
 
-        {/* LIVE: MARKETING EERST */}
+        {hasMultipleListings && (
+          <section className="mb-8 rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Meerdere woningen actief
+                </div>
+
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
+                  Je account is nu ingericht voor meerdere woningen
+                </h2>
+
+                <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+                  Dit dashboard blijft rustig en toont hieronder één focuswoning.
+                  Voor het volledige overzicht, bewerken en schakelen tussen je
+                  woningen gebruik je de woningenpagina.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/dashboard/listings"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-5 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
+                >
+                  Bekijk al je woningen
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+
+                <Link
+                  href="/listings/new"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  Woning toevoegen
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
         {isLive && (
           <MarketingCampaignCard
             listingId={listing.id}
-            siteUrl={process.env.NEXT_PUBLIC_SITE_URL}
+            budget={dbListing.marketing_budget ?? 300}
+            views={dbListing.views ?? 0}
+            marketingActive={dbListing.marketing_active ?? false}
+            city={dbListing.city}
+            street={dbListing.street}
+            houseNumber={dbListing.house_number}
+            slug={dbListing.slug}
           />
         )}
 
-        {/* HOOFDSECTIE */}
         <section className="mb-8 grid gap-6 xl:grid-cols-[1.5fr_0.95fr]">
           <div className="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
             <div className="grid xl:grid-cols-[1.15fr_0.85fr]">
@@ -266,7 +438,13 @@ export default async function DashboardPage() {
                     </span>
                   )}
 
-                  <h2 className="mt-5 text-3xl font-semibold tracking-tight text-neutral-900">
+                  {hasMultipleListings && (
+                    <p className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-neutral-400">
+                      Focuswoning
+                    </p>
+                  )}
+
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">
                     {listing.title}
                   </h2>
 
@@ -329,7 +507,7 @@ export default async function DashboardPage() {
                       </Link>
 
                       <Link
-                        href={`/listings/${listing.id}`}
+                        href={publicListingPath}
                         target="_blank"
                         className="flex w-full items-center justify-center rounded-2xl border border-neutral-200 bg-white px-6 py-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
                       >
@@ -444,6 +622,29 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                 </div>
+
+                {hasMultipleListings && (
+                  <Link
+                    href="/dashboard/listings"
+                    className="flex items-center justify-between rounded-2xl border border-neutral-100 px-4 py-4 transition hover:bg-neutral-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900">
+                          Woningoverzicht
+                        </p>
+                        <p className="text-sm text-neutral-500">
+                          Bekijk en beheer al je woningen vanuit één overzicht
+                        </p>
+                      </div>
+                    </div>
+
+                    <ChevronRight className="h-4 w-4 text-neutral-400" />
+                  </Link>
+                )}
               </div>
             </div>
           </div>
