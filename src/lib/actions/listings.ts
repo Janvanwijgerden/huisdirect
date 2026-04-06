@@ -127,6 +127,30 @@ export async function createDraftListing(formData: FormData): Promise<void> {
     throw new Error('Geef in ieder geval een werk- of projecttitel op.');
   }
 
+  const street = String(formData.get('street') || '').trim();
+  const houseNumber = String(formData.get('house_number') || '').trim();
+  const postalCode = String(formData.get('postal_code') || '').trim();
+  const city = String(formData.get('city') || '').trim();
+
+  const lat = formData.get('lat');
+  const lng = formData.get('lng');
+
+  const propertyType = String(formData.get('property_type') || '').trim();
+  const askingPrice = String(formData.get('asking_price') || '').trim();
+  const livingArea = String(formData.get('living_area') || '').trim();
+  const yearBuilt = String(formData.get('year_built') || '').trim();
+
+  const sourceWozValue = String(formData.get('source_woz_value') || '').trim();
+  const estimatedValueLow = String(formData.get('estimated_value_low') || '').trim();
+  const estimatedValueMid = String(formData.get('estimated_value_mid') || '').trim();
+  const estimatedValueHigh = String(formData.get('estimated_value_high') || '').trim();
+  const valuationPricePerM2 = String(formData.get('valuation_price_per_m2') || '').trim();
+  const valuationConfidence = String(formData.get('valuation_confidence') || '').trim();
+  const valuationSource = String(formData.get('valuation_source') || '').trim();
+  const valuationModelVersion = String(
+    formData.get('valuation_model_version') || ''
+  ).trim();
+
   const { data, error } = await supabase
     .from('listings')
     .insert({
@@ -135,6 +159,36 @@ export async function createDraftListing(formData: FormData): Promise<void> {
       slug: slugify(title),
       status: 'draft',
       is_featured: false,
+
+      street: street || null,
+      city: city || null,
+      property_type: propertyType || null,
+      asking_price: askingPrice ? Number(askingPrice) : null,
+      living_area: livingArea ? Number(livingArea) : null,
+      year_built: yearBuilt ? Number(yearBuilt) : null,
+
+      source_street: street || null,
+      source_house_number: houseNumber || null,
+      source_postal_code: postalCode || null,
+      source_city: city || null,
+      source_lat: lat ? Number(lat) : null,
+      source_lng: lng ? Number(lng) : null,
+      source_build_year: yearBuilt ? Number(yearBuilt) : null,
+      source_living_area: livingArea ? Number(livingArea) : null,
+      source_property_type: propertyType || null,
+      source_woz_value: sourceWozValue ? Number(sourceWozValue) : null,
+      source_data_provider: valuationSource || 'bag_mock_v1',
+
+      estimated_value_low: estimatedValueLow ? Number(estimatedValueLow) : null,
+      estimated_value_mid: estimatedValueMid ? Number(estimatedValueMid) : null,
+      estimated_value_high: estimatedValueHigh ? Number(estimatedValueHigh) : null,
+      valuation_source: valuationSource || 'bag_mock_v1',
+      valuation_model_version: valuationModelVersion || 'simple_valuation_v1',
+      valuation_confidence: valuationConfidence ? Number(valuationConfidence) : null,
+      valuation_price_per_m2: valuationPricePerM2 ? Number(valuationPricePerM2) : null,
+      valuation_metadata: {
+        entry_point: 'listing_new',
+      },
     })
     .select();
 

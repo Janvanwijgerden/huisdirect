@@ -1,122 +1,81 @@
-import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "../../../lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import {
-  getUserListings,
-  attemptPublishListing,
-} from "../../../lib/actions/listings";
-import { getUserLeads } from "../../../lib/actions/leads";
-import MarketingCampaignCard from "../../../components/dashboard/MarketingCampaignCard";
-import {
-  Camera,
-  FileText,
-  Euro,
-  Check,
-  Home,
+  ArrowRight,
+  BedDouble,
+  CheckCircle2,
   ChevronRight,
-  Mail,
-  Megaphone,
-  Users,
-  Settings,
-  Building2,
-  Plus,
+  Euro,
+  Eye,
+  FileText,
+  Home,
+  ImagePlus,
+  MapPin,
+  PencilLine,
+  Ruler,
+  Sparkles,
 } from "lucide-react";
 
-type Listing = {
-  id: string;
-  title?: string | null;
-  image?: string | null;
-  city?: string | null;
-  street?: string | null;
-  house_number?: string | null;
-  slug?: string | null;
-  asking_price?: number | null;
-  description?: string | null;
-  property_type?: string | null;
-  status?: string | null;
-  listing_images?: Array<{
-    id: string;
-    public_url?: string | null;
-    is_cover?: boolean | null;
-    position?: number | null;
-  }> | null;
-  marketing_budget?: number | null;
-  views?: number | null;
-  marketing_active?: boolean | null;
-  created_at?: string | null;
-};
+function formatPrice(value?: number | null) {
+  if (!value) return "Nog niet ingevuld";
 
-function normalizeSegment(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
-function buildPublicHousePath({
-  slug,
-  city,
-  street,
-  houseNumber,
-  listingId,
-}: {
-  slug?: string | null;
-  city?: string | null;
-  street?: string | null;
-  houseNumber?: string | null;
-  listingId: string;
-}) {
-  if (slug && slug.trim()) {
-    return `/huis/${slug}`;
+function getCompletionScore(listing: any, imageCount: number) {
+  let score = 0;
+
+  if (listing.title) score += 10;
+  if (listing.street && listing.city) score += 10;
+  if (listing.asking_price) score += 15;
+  if (listing.property_type) score += 10;
+  if (listing.living_area) score += 10;
+  if (listing.year_built) score += 5;
+  if (listing.description && listing.description.length >= 80) score += 20;
+  if (imageCount >= 1) score += 10;
+  if (imageCount >= 5) score += 10;
+
+  return Math.min(score, 100);
+}
+
+function getNextStep(listing: any, imageCount: number) {
+  if (imageCount === 0) {
+    return {
+      title: "Voeg foto’s toe",
+      text: "Sterke foto’s zijn het eerste wat kopers zien. Dit heeft direct impact op kliks en aanvragen.",
+      href: `/listings/${listing.id}/edit`,
+      cta: "Foto’s uploaden",
+    };
   }
 
-  if (city && street && houseNumber) {
-    return `/huis/${normalizeSegment(city)}/${normalizeSegment(
-      street
-    )}/${normalizeSegment(houseNumber)}`;
+  if (!listing.asking_price) {
+    return {
+      title: "Bepaal je vraagprijs",
+      text: "Een duidelijke vraagprijs geeft vertrouwen en helpt kopers sneller beslissen om contact op te nemen.",
+      href: `/listings/${listing.id}/edit`,
+      cta: "Vraagprijs invullen",
+    };
   }
 
-  return `/listings/${listingId}`;
-}
+  if (!listing.description || listing.description.length < 80) {
+    return {
+      title: "Schrijf je omschrijving",
+      text: "Een goede woningomschrijving verkoopt sfeer, ruimte en vertrouwen. Dit maakt je advertentie veel sterker.",
+      href: `/listings/${listing.id}/edit`,
+      cta: "Omschrijving schrijven",
+    };
+  }
 
-function getPrimaryListing(listings: Listing[]) {
-  if (listings.length === 0) return null;
-
-  const activeListing = listings.find((listing) => listing.status === "active");
-  if (activeListing) return activeListing;
-
-  const sorted = [...listings].sort((a, b) => {
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return bTime - aTime;
-  });
-
-  return sorted[0];
-}
-
-function getCompletionPercentage(listing: Listing) {
-  const hasPhotos = Boolean(
-    listing.listing_images && listing.listing_images.length > 0
-  );
-
-  const hasDetails = Boolean(
-    listing.description &&
-      listing.description.length > 20 &&
-      listing.property_type &&
-      listing.city
-  );
-
-  const hasPrice = Boolean(
-    listing.asking_price && Number(listing.asking_price) > 0
-  );
-
-  const total = [hasPhotos, hasDetails, hasPrice].filter(Boolean).length;
-
-  return Math.round((total / 3) * 100);
+  return {
+    title: "Controleer en zet live",
+    text: "Je basis staat. Loop je advertentie nog één keer door en zet hem daarna live voor kopers.",
+    href: `/listings/${listing.id}/edit`,
+    cta: "Advertentie afronden",
+  };
 }
 
 export default async function DashboardPage() {
@@ -127,619 +86,410 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login");
+    return null;
   }
 
-  const userListings: Listing[] = await getUserListings(user.id);
-  const validListings = (userListings ?? []).filter((listing) => listing?.id);
+  const { data: listings } = await supabase
+    .from("listings")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  const leads = await getUserLeads(user.id);
-  const recentLeads = leads.slice(0, 3);
+  const listing = listings?.[0] ?? null;
 
-  const totalListings = validListings.length;
-  const hasMultipleListings = totalListings > 1;
-  const activeListingsCount = validListings.filter(
-    (listing) => listing.status === "active"
-  ).length;
-
-  const dbListing = getPrimaryListing(validListings);
-
-  if (!dbListing) {
+  if (!listing) {
     return (
-      <div className="min-h-screen bg-neutral-50 px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8 flex flex-col gap-4 rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
-                Mijn account
+      <main className="min-h-screen bg-neutral-50">
+        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:p-10">
+            <div className="max-w-2xl">
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+                <Home className="h-6 w-6 text-emerald-600" />
+              </div>
+
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Start je verkoop
+              </div>
+
+              <h1 className="text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
+                Je hebt nog geen woning gestart
               </h1>
-              <p className="mt-1 text-sm text-neutral-500">
-                Hier regel je alles voor de verkoop van je woning
-              </p>
-            </div>
 
-            <div className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-              <Mail className="h-4 w-4 text-neutral-400" />
-              <span>{user.email}</span>
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
-            <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-              <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">
-                Nog geen woning toegevoegd
-              </h2>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-500">
-                Start met je woning om je verkoopomgeving op te bouwen. Daarna
-                kun je je advertentie aanvullen, publiceren, leads ontvangen en
-                marketing inzetten.
+              <p className="mt-4 max-w-xl text-base leading-7 text-neutral-600 sm:text-lg">
+                Start met je adres en wij helpen je stap voor stap verder. Zo bouw je
+                snel een sterke advertentie op die klaar is om live te gaan.
               </p>
 
               <div className="mt-8">
                 <Link
                   href="/listings/new"
-                  className="inline-flex items-center justify-center rounded-2xl bg-neutral-900 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                  className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
-                  Start met je woning
+                  Plaats woning
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
-
-            <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-              <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-                Wat je hier straks regelt
-              </h3>
-
-              <div className="mt-6 space-y-4">
-                {[
-                  "Je woning beheren",
-                  "Je advertentie publiceren",
-                  "Aanvragen van kopers ontvangen",
-                  "Marketing activeren",
-                  "Je accountgegevens beheren",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-3 rounded-2xl border border-neutral-100 px-4 py-4"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
-                      <Check className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm text-neutral-700">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     );
   }
 
-  const hasPhotos = Boolean(
-    dbListing.listing_images && dbListing.listing_images.length > 0
-  );
-  const hasDetails = Boolean(
-    dbListing.description &&
-      dbListing.description.length > 20 &&
-      dbListing.property_type &&
-      dbListing.city
-  );
-  const hasPrice = Boolean(dbListing.asking_price && dbListing.asking_price > 0);
-  const isLive = dbListing.status === "active";
-  const canPublish = Boolean(hasPhotos && hasDetails && hasPrice);
+  const { data: images } = await supabase
+    .from("listing_images")
+    .select("id, public_url, is_cover, position")
+    .eq("listing_id", listing.id)
+    .order("position", { ascending: true });
 
-  const listing = {
-    id: dbListing.id,
-    title: dbListing.title || "Concept woning",
-    image: dbListing.image || null,
-    city: dbListing.city || "Locatie nog niet ingevuld",
-    price: dbListing.asking_price || null,
-  };
+  const imageList = images ?? [];
+  const coverImage =
+    imageList.find((image: any) => image.is_cover)?.public_url ||
+    imageList[0]?.public_url ||
+    null;
 
-  const publicListingPath = buildPublicHousePath({
-    slug: dbListing.slug,
-    city: dbListing.city,
-    street: dbListing.street,
-    houseNumber: dbListing.house_number,
-    listingId: dbListing.id,
-  });
+  const completion = getCompletionScore(listing, imageList.length);
+  const nextStep = getNextStep(listing, imageList.length);
 
   const checklist = [
     {
-      title: "Woningfoto's",
-      description: "Zorg voor een sterke eerste indruk",
-      done: hasPhotos,
-      icon: Camera,
+      label: "Basisgegevens ingevuld",
+      done: !!listing.title && !!listing.street && !!listing.city,
     },
     {
-      title: "Woninggegevens",
-      description: "Vul alle belangrijke informatie compleet in",
-      done: hasDetails,
-      icon: FileText,
+      label: "Vraagprijs toegevoegd",
+      done: !!listing.asking_price,
     },
     {
-      title: "Vraagprijs",
-      description: "Geef kopers direct duidelijkheid",
-      done: hasPrice,
-      icon: Euro,
+      label: "Kenmerken toegevoegd",
+      done: !!listing.property_type && !!listing.living_area && !!listing.year_built,
+    },
+    {
+      label: "Omschrijving geschreven",
+      done: !!listing.description && listing.description.length >= 80,
+    },
+    {
+      label: "Foto’s geüpload",
+      done: imageList.length > 0,
     },
   ];
 
-  const totalChecklistDone = checklist.filter((item) => item.done).length;
-  const completionPercentage = Math.round(
-    (totalChecklistDone / checklist.length) * 100
-  );
-
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
-        <section className="mb-8 grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] sm:p-7">
-            <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
-              Mijn account
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-500">
-              Hier regel je alles voor de verkoop van je woning: van aanvullen
-              en publiceren tot leads en marketing.
-            </p>
+    <main className="min-h-screen bg-neutral-50">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-3">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            Jouw woning in opbouw
           </div>
 
-          <div className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
-                <Mail className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-neutral-900">Account</p>
-                <p className="mt-1 break-all text-sm text-neutral-500">
-                  {user.email}
-                </p>
-              </div>
-            </div>
+          <h1 className="text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
+            {listing.title || `${listing.street || "Jouw woning"}, ${listing.city || ""}`}
+          </h1>
 
-            <div className="mt-5 border-t border-neutral-100 pt-5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-neutral-500">
-                  {hasMultipleListings ? "Focuswoning" : "Woningstatus"}
-                </span>
-                <span className="font-medium text-neutral-900">
-                  {isLive ? "Live" : "Concept"}
-                </span>
-              </div>
+          <p className="max-w-3xl text-base leading-7 text-neutral-600">
+            Hier werk je jouw advertentie af. Laat hem voelen als een echte woningpresentatie,
+            niet als een invulscherm. Hoe beter het hier oogt, hoe groter de kans dat je hem ook echt afmaakt.
+          </p>
+        </div>
 
-              <div className="mt-3 flex items-center justify-between text-sm">
-                <span className="text-neutral-500">Voltooid</span>
-                <span className="font-medium text-neutral-900">
-                  {completionPercentage}%
-                </span>
-              </div>
-
-              {hasMultipleListings && (
-                <>
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">Woningen</span>
-                    <span className="font-medium text-neutral-900">
-                      {totalListings}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">Live</span>
-                    <span className="font-medium text-neutral-900">
-                      {activeListingsCount}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {hasMultipleListings && (
-          <section className="mb-8 rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-3xl">
-                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Meerdere woningen actief
-                </div>
-
-                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
-                  Je account is nu ingericht voor meerdere woningen
-                </h2>
-
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-                  Dit dashboard blijft rustig en toont hieronder één focuswoning.
-                  Voor het volledige overzicht, bewerken en schakelen tussen je
-                  woningen gebruik je de woningenpagina.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/dashboard/listings"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-5 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50"
-                >
-                  Bekijk al je woningen
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-
-                <Link
-                  href="/listings/new"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                >
-                  <Plus className="h-4 w-4" />
-                  Woning toevoegen
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {isLive && (
-          <MarketingCampaignCard
-            listingId={listing.id}
-            budget={dbListing.marketing_budget ?? 300}
-            views={dbListing.views ?? 0}
-            marketingActive={dbListing.marketing_active ?? false}
-            city={dbListing.city}
-            street={dbListing.street}
-            houseNumber={dbListing.house_number}
-            slug={dbListing.slug}
-          />
-        )}
-
-        <section className="mb-8 grid gap-6 xl:grid-cols-[1.5fr_0.95fr]">
-          <div className="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-            <div className="grid xl:grid-cols-[1.15fr_0.85fr]">
-              <div className="relative min-h-[300px] border-b border-neutral-100 bg-neutral-50 xl:min-h-[100%] xl:border-b-0 xl:border-r">
-                {listing.image ? (
-                  <Image
-                    src={listing.image}
-                    alt={listing.title}
-                    fill
-                    priority
-                    className="object-cover"
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.7fr)_380px]">
+          <div className="space-y-8">
+            <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+              <div className="relative">
+                {coverImage ? (
+                  <img
+                    src={coverImage}
+                    alt={listing.title || "Woning"}
+                    className="h-[280px] w-full object-cover sm:h-[380px]"
                   />
                 ) : (
-                  <div className="flex h-full min-h-[300px] flex-col items-center justify-center p-8 text-center">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-neutral-200 bg-white shadow-sm">
-                      <Camera className="h-6 w-6 text-neutral-400" />
+                  <div className="flex h-[280px] w-full items-center justify-center bg-neutral-100 sm:h-[380px]">
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+                        <ImagePlus className="h-6 w-6 text-neutral-400" />
+                      </div>
+                      <p className="text-base font-medium text-neutral-700">
+                        Voeg een sterke hoofdfoto toe
+                      </p>
+                      <p className="mt-1 text-sm text-neutral-500">
+                        De eerste foto bepaalt voor een groot deel de eerste indruk.
+                      </p>
                     </div>
-                    <h3 className="text-base font-semibold text-neutral-900">
-                      Voeg een sterke hoofdfoto toe
-                    </h3>
-                    <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-neutral-500">
-                      Dit is het eerste wat kopers zien wanneer ze jouw woning
-                      bekijken.
-                    </p>
-                    <Link
-                      href={`/listings/${listing.id}/edit`}
-                      className="mt-6 inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                    >
-                      Foto toevoegen
-                    </Link>
                   </div>
                 )}
+
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent p-5 sm:p-7">
+                  <div className="max-w-3xl">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
+                      Voorbeeld van je live advertentie
+                    </p>
+
+                    <div className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-4xl">
+                      {formatPrice(listing.asking_price)}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/90 sm:text-base">
+                      {listing.living_area ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Ruler className="h-4 w-4" />
+                          {listing.living_area} m²
+                        </span>
+                      ) : null}
+
+                      {listing.bedrooms ? (
+                        <span className="inline-flex items-center gap-2">
+                          <BedDouble className="h-4 w-4" />
+                          {listing.bedrooms} kamers
+                        </span>
+                      ) : null}
+
+                      {listing.year_built ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Home className="h-4 w-4" />
+                          Bouwjaar {listing.year_built}
+                        </span>
+                      ) : null}
+
+                      {listing.energy_label ? (
+                        <span className="inline-flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Label {listing.energy_label}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-col p-8 lg:p-10">
+              <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_280px]">
                 <div>
-                  {isLive ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                      <Check className="h-3.5 w-3.5" />
-                      Live online
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {listing.street || "Adres nog niet volledig"}{listing.city ? `, ${listing.city}` : ""}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-500/20">
-                      <Home className="h-3.5 w-3.5 text-neutral-500" />
-                      Conceptversie
+
+                    <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                      <Eye className="h-3.5 w-3.5" />
+                      Zo zien kopers jouw woning straks
                     </span>
-                  )}
+                  </div>
 
-                  {hasMultipleListings && (
-                    <p className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-neutral-400">
-                      Focuswoning
-                    </p>
-                  )}
-
-                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">
-                    {listing.title}
+                  <h2 className="text-xl font-semibold tracking-tight text-neutral-950">
+                    Woningomschrijving
                   </h2>
 
-                  <p className="mt-2 text-sm text-neutral-500">
-                    {listing.city}
+                  <p className="mt-3 text-sm leading-7 text-neutral-600 sm:text-base">
+                    {listing.description && listing.description.length > 0
+                      ? listing.description
+                      : "Voeg een overtuigende omschrijving toe waarin ruimte, sfeer, ligging en pluspunten direct duidelijk worden. Dit is een belangrijk verkooponderdeel van je advertentie."}
                   </p>
 
-                  <p className="mt-5 text-2xl font-semibold text-neutral-900">
-                    {listing.price
-                      ? `€ ${listing.price.toLocaleString("nl-NL")} k.k.`
-                      : "Vraagprijs nog niet ingesteld"}
-                  </p>
-                </div>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <Link
+                      href={`/listings/${listing.id}/edit`}
+                      className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      Advertentie bewerken
+                      <PencilLine className="h-4 w-4" />
+                    </Link>
 
-                <div className="mt-8 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-500">Woning compleet</span>
-                    <span className="font-medium text-neutral-900">
-                      {completionPercentage}%
-                    </span>
-                  </div>
-
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200">
-                    <div
-                      className="h-full rounded-full bg-emerald-600 transition-all"
-                      style={{ width: `${completionPercentage}%` }}
-                    />
+                    <Link
+                      href={`/listings/${listing.id}/edit`}
+                      className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50"
+                    >
+                      Foto’s beheren
+                      <ImagePlus className="h-4 w-4" />
+                    </Link>
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-col gap-3">
-                  {!isLive && (
-                    <>
-                      <Link
-                        href={`/listings/${listing.id}/edit`}
-                        className="flex w-full items-center justify-center rounded-2xl border border-neutral-200 bg-white px-6 py-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                      >
-                        Maak je woning compleet
-                      </Link>
+                <div className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    Snelle woningcheck
+                  </p>
 
-                      <form action={attemptPublishListing.bind(null, listing.id)}>
-                        <button
-                          type="submit"
-                          disabled={!canPublish}
-                          className="w-full rounded-2xl bg-neutral-900 px-6 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400"
-                        >
-                          Zet woning live voor €195
-                        </button>
-                      </form>
-                    </>
-                  )}
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                      <span className="text-sm text-neutral-500">Woningtype</span>
+                      <span className="text-sm font-medium text-neutral-900">
+                        {listing.property_type || "Nog niet ingevuld"}
+                      </span>
+                    </div>
 
-                  {isLive && (
-                    <>
-                      <Link
-                        href="#marketing"
-                        className="flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-                      >
-                        Start marketingcampagne
-                      </Link>
+                    <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                      <span className="text-sm text-neutral-500">Vraagprijs</span>
+                      <span className="text-sm font-medium text-neutral-900">
+                        {formatPrice(listing.asking_price)}
+                      </span>
+                    </div>
 
-                      <Link
-                        href={publicListingPath}
-                        target="_blank"
-                        className="flex w-full items-center justify-center rounded-2xl border border-neutral-200 bg-white px-6 py-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                      >
-                        Bekijk je woning
-                      </Link>
-                    </>
-                  )}
+                    <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                      <span className="text-sm text-neutral-500">Woonoppervlakte</span>
+                      <span className="text-sm font-medium text-neutral-900">
+                        {listing.living_area ? `${listing.living_area} m²` : "Nog niet ingevuld"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                      <span className="text-sm text-neutral-500">Foto’s</span>
+                      <span className="text-sm font-medium text-neutral-900">
+                        {imageList.length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.04)]">
+                <div className="flex items-start gap-3">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
+                    <ImagePlus className="h-5 w-5 text-emerald-600" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-neutral-950">
+                      Foto’s moeten extreem makkelijk zijn
+                    </h3>
+                    <p className="mt-2 text-sm leading-7 text-neutral-600">
+                      Foto’s verkopen je woning. Zorg dat de mooiste buitenfoto bovenaan staat
+                      en maak het wisselen van hoofdfoto straks drag-and-drop.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4">
+                  <p className="text-sm font-medium text-neutral-900">
+                    Aanbevolen hierna
+                  </p>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Upload eerst 8 tot 15 sterke foto’s. Begin met vooraanzicht, woonkamer, keuken en tuin.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.04)]">
+                <div className="flex items-start gap-3">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
+                    <FileText className="h-5 w-5 text-emerald-600" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-neutral-950">
+                      Verkoop vanuit gevoel én duidelijkheid
+                    </h3>
+                    <p className="mt-2 text-sm leading-7 text-neutral-600">
+                      Laat direct zien waarom deze woning aantrekkelijk is. Kopers beslissen niet alleen op feiten,
+                      maar vooral op gevoel, vertrouwen en eerste indruk.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-neutral-200 bg-emerald-50/60 p-4">
+                  <p className="text-sm font-medium text-neutral-900">
+                    Slimme tip
+                  </p>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    Benoem licht, ruimte, tuin, rust, sfeer en ligging. Dat leest sterker dan alleen droge kenmerken.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-              <h3 className="text-xl font-semibold tracking-tight text-neutral-900">
-                {isLive ? "Je woning staat goed" : "Wat moet je nog doen"}
+          <aside className="space-y-6">
+            <div className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+              <p className="text-sm font-medium text-neutral-500">Voortgang</p>
+
+              <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-neutral-100">
+                <div
+                  className="h-full rounded-full bg-emerald-600"
+                  style={{ width: `${completion}%` }}
+                />
+              </div>
+
+              <div className="mt-3 text-2xl font-semibold tracking-tight text-neutral-950">
+                {completion}% compleet
+              </div>
+
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Hoe completer je advertentie, hoe professioneler hij voelt voor kopers.
+              </p>
+            </div>
+
+            <div className="rounded-[32px] border border-emerald-200 bg-emerald-50/70 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
+                Eerstvolgende beste stap
+              </p>
+
+              <h3 className="mt-3 text-xl font-semibold tracking-tight text-neutral-950">
+                {nextStep.title}
               </h3>
 
-              <div className="mt-6 flex flex-col gap-4">
+              <p className="mt-2 text-sm leading-7 text-neutral-600">
+                {nextStep.text}
+              </p>
+
+              <Link
+                href={nextStep.href}
+                className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                {nextStep.cta}
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.04)]">
+              <h3 className="text-lg font-semibold tracking-tight text-neutral-950">
+                Checklist
+              </h3>
+
+              <div className="mt-4 space-y-3">
                 {checklist.map((item) => (
                   <div
-                    key={item.title}
-                    className="rounded-2xl border border-neutral-100 p-4"
+                    key={item.label}
+                    className="flex items-start gap-3 rounded-2xl bg-neutral-50 px-4 py-3"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex gap-3">
-                        <div
-                          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                            item.done
-                              ? "bg-green-50 text-green-600"
-                              : "bg-neutral-100 text-neutral-500"
-                          }`}
-                        >
-                          <item.icon className="h-4.5 w-4.5" />
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-medium text-neutral-900">
-                            {item.title}
-                          </p>
-                          <p className="mt-1 text-sm leading-relaxed text-neutral-500">
-                            {item.description}
-                          </p>
-                          <p
-                            className={`mt-2 text-xs font-medium ${
-                              item.done ? "text-green-600" : "text-neutral-500"
-                            }`}
-                          >
-                            {item.done ? "Afgerond" : "Nog toevoegen"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Link
-                        href={`/listings/${listing.id}/edit`}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-900"
-                      >
-                        {item.done ? "Wijzigen" : "Invullen"}
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
+                    <div
+                      className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                        item.done
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-neutral-200 text-neutral-500"
+                      }`}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     </div>
+                    <div className="text-sm text-neutral-700">{item.label}</div>
                   </div>
                 ))}
               </div>
-
-              {isLive && (
-                <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-sm font-medium text-emerald-900">
-                    Klaar voor de volgende stap
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed text-emerald-700">
-                    Je advertentie staat online. Extra zichtbaarheid via
-                    marketing is nu de snelste manier om meer aandacht te
-                    trekken.
-                  </p>
-                </div>
-              )}
             </div>
 
-            <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-              <h3 className="text-xl font-semibold tracking-tight text-neutral-900">
-                Account en instellingen
+            <div className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.04)]">
+              <h3 className="text-lg font-semibold tracking-tight text-neutral-950">
+                Klaar om live te gaan?
               </h3>
 
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center justify-between rounded-2xl border border-neutral-100 px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">
-                        Mijn gegevens
-                      </p>
-                      <p className="text-sm text-neutral-500">{user.email}</p>
-                    </div>
-                  </div>
-                </div>
+              <p className="mt-2 text-sm leading-7 text-neutral-600">
+                Publiceer pas als je advertentie vertrouwen uitstraalt. Goede foto’s en een sterke omschrijving maken het verschil.
+              </p>
 
-                <div className="flex items-center justify-between rounded-2xl border border-neutral-100 px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
-                      <Settings className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">
-                        Instellingen
-                      </p>
-                      <p className="text-sm text-neutral-500">
-                        Later uitbreiden met profiel en voorkeuren
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {hasMultipleListings && (
-                  <Link
-                    href="/dashboard/listings"
-                    className="flex items-center justify-between rounded-2xl border border-neutral-100 px-4 py-4 transition hover:bg-neutral-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
-                        <Building2 className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-neutral-900">
-                          Woningoverzicht
-                        </p>
-                        <p className="text-sm text-neutral-500">
-                          Bekijk en beheer al je woningen vanuit één overzicht
-                        </p>
-                      </div>
-                    </div>
-
-                    <ChevronRight className="h-4 w-4 text-neutral-400" />
-                  </Link>
-                )}
-              </div>
+              <Link
+                href={`/listings/${listing.id}/edit`}
+                className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50"
+              >
+                Eerst nog verbeteren
+                <PencilLine className="h-4 w-4" />
+              </Link>
             </div>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-semibold tracking-tight text-neutral-900">
-                  Leads
-                </h3>
-                <p className="mt-1 text-sm text-neutral-500">
-                  De nieuwste aanvragen van geïnteresseerde kopers
-                </p>
-              </div>
-
-              <div className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                <Users className="h-3.5 w-3.5" />
-                {leads.length} totaal
-              </div>
-            </div>
-
-            <div className="mt-6">
-              {recentLeads.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 px-5 py-10 text-center">
-                  <p className="text-sm text-neutral-500">
-                    Je hebt nog geen aanvragen ontvangen.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentLeads.map((lead: any) => (
-                    <div
-                      key={lead.id}
-                      className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-100 px-5 py-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-neutral-900">
-                          {lead.name}
-                        </p>
-                        <p className="mt-1 text-sm text-neutral-500">
-                          {lead.request_type}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 text-xs text-neutral-400">
-                        {new Date(lead.created_at).toLocaleDateString("nl-NL")}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {!isLive && (
-            <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                  <Megaphone className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold tracking-tight text-neutral-900">
-                    Marketing
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-neutral-500">
-                    Zodra je woning live staat, kun je extra bereik activeren.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-neutral-100 bg-neutral-50 p-5">
-                <p className="text-sm font-medium text-neutral-900">
-                  Eerst publiceren, daarna opschalen
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-500">
-                  Zet eerst je woning live. Daarna maak je met marketing extra
-                  bereik en vergroot je de kans op nieuwe aanvragen.
-                </p>
-              </div>
-
-              <div className="mt-6">
-                <button
-                  type="button"
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-6 py-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                >
-                  Marketing later activeren
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
+          </aside>
+        </div>
+      </section>
+    </main>
   );
 }
