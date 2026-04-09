@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     .from("listing_images")
     .select("*")
     .eq("listing_id", listingId)
-    .order("created_at", { ascending: true });
+    .order("position", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

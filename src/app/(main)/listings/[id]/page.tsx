@@ -14,6 +14,12 @@ type ListingPageProps = {
   };
 };
 
+type DescriptionSection = {
+  title?: string;
+  paragraphs: string[];
+  bullets?: string[];
+};
+
 function formatPropertyType(value: string | null) {
   switch (value) {
     case "eengezinswoning":
@@ -33,68 +39,215 @@ function formatPropertyType(value: string | null) {
   }
 }
 
-function renderDescription(description?: string | null) {
-  if (!description || !description.trim()) {
-    return <p>Geen omschrijving beschikbaar.</p>;
+function splitIntoSentences(text: string) {
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean) || [];
+}
+
+function chunkSentences(sentences: string[], size: number) {
+  const chunks: string[] = [];
+
+  for (let i = 0; i < sentences.length; i += size) {
+    chunks.push(sentences.slice(i, i + size).join(" ").trim());
   }
 
-  const lines = description
+  return chunks;
+}
+
+function renderDescription(description?: string | null) {
+  if (!description || !description.trim()) {
+    return <p className="text-[16px] leading-7 text-neutral-700">Geen omschrijving beschikbaar.</p>;
+  }
+
+  const rawLines = description
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line !== "");
 
-  const elements: React.ReactNode[] = [];
-  let bulletBuffer: string[] = [];
-  let paragraphBuffer: string[] = [];
+  const bulletLines = rawLines
+    .filter(
+      (line) =>
+        line.startsWith("- ") ||
+        line.startsWith("• ") ||
+        line.startsWith("* ")
+    )
+    .map((line) => line.replace(/^[-•*]\s+/, "").trim())
+    .filter(Boolean);
 
-  const flushParagraph = () => {
-    if (paragraphBuffer.length > 0) {
-      elements.push(
-        <p key={`p-${elements.length}`}>
-          {paragraphBuffer.join(" ")}
-        </p>
-      );
-      paragraphBuffer = [];
-    }
-  };
+  const nonBulletText = rawLines
+    .filter(
+      (line) =>
+        !line.startsWith("- ") &&
+        !line.startsWith("• ") &&
+        !line.startsWith("* ")
+    )
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  const flushBullets = () => {
-    if (bulletBuffer.length > 0) {
-      elements.push(
-        <ul
-          key={`ul-${elements.length}`}
-          className="space-y-2 pl-5"
-        >
-          {bulletBuffer.map((item, index) => (
-            <li key={`li-${elements.length}-${index}`} className="list-disc">
-              {item}
-            </li>
-          ))}
-        </ul>
-      );
-      bulletBuffer = [];
-    }
-  };
+  const sentences = splitIntoSentences(nonBulletText);
 
-  for (const line of lines) {
-    const isBullet =
-      line.startsWith("- ") ||
-      line.startsWith("• ") ||
-      line.startsWith("* ");
+  if (sentences.length === 0 && bulletLines.length === 0) {
+    return <p className="text-[16px] leading-7 text-neutral-700">Geen omschrijving beschikbaar.</p>;
+  }
 
-    if (isBullet) {
-      flushParagraph();
-      bulletBuffer.push(line.replace(/^[-•*]\s+/, ""));
-    } else {
-      flushBullets();
-      paragraphBuffer.push(line);
+  const sections: DescriptionSection[] = [];
+  const usedSentenceIndexes = new Set<number>();
+
+  const introSentences = sentences.slice(0, Math.min(2, sentences.length));
+  if (introSentences.length > 0) {
+    introSentences.forEach((_, index) => usedSentenceIndexes.add(index));
+    sections.push({
+      paragraphs: [introSentences.join(" ")],
+    });
+  }
+
+  const groups = [
+    {
+      title: "Indeling en ruimte",
+      keywords: [
+        "woonoppervlakte",
+        "kamer",
+        "kamers",
+        "slaapkamer",
+        "slaapkamers",
+        "indeling",
+        "woonruimte",
+        "eethoek",
+        "lichte",
+        "licht",
+        "raampartijen",
+        "leefruimte",
+        "hobbyruimte",
+        "thuiskantoor",
+        "thuiswerken",
+        "gezin",
+        "praktisch",
+        "ruimt",
+      ],
+    },
+    {
+      title: "Buitenruimte",
+      keywords: [
+        "tuin",
+        "perceel",
+        "buiten",
+        "buitenruimte",
+        "terras",
+        "groen",
+        "buitenleven",
+        "ontspanning",
+        "speelgelegenheid",
+      ],
+    },
+    {
+      title: "Ligging",
+      keywords: [
+        "gelegen",
+        "locatie",
+        "omgeving",
+        "voorzieningen",
+        "bereik",
+        "rustig",
+        "ligging",
+        "buurt",
+        "nabij",
+        "handbereik",
+      ],
+    },
+    {
+      title: "Duurzaamheid en bouwjaar",
+      keywords: [
+        "bouwjaar",
+        "energielabel",
+        "energiezuinig",
+        "duurzaam",
+        "toekomst",
+        "solide",
+      ],
+    },
+  ];
+
+  for (const group of groups) {
+    const matchedSentences: string[] = [];
+
+    sentences.forEach((sentence, index) => {
+      if (usedSentenceIndexes.has(index)) {
+        return;
+      }
+
+      const lower = sentence.toLowerCase();
+      const isMatch = group.keywords.some((keyword) => lower.includes(keyword));
+
+      if (isMatch) {
+        matchedSentences.push(sentence);
+        usedSentenceIndexes.add(index);
+      }
+    });
+
+    if (matchedSentences.length > 0) {
+      sections.push({
+        title: group.title,
+        paragraphs: chunkSentences(matchedSentences, 2),
+      });
     }
   }
 
-  flushParagraph();
-  flushBullets();
+  const remainingSentences = sentences.filter((_, index) => !usedSentenceIndexes.has(index));
+  if (remainingSentences.length > 0) {
+    sections.push({
+      title: "Meer over deze woning",
+      paragraphs: chunkSentences(remainingSentences, 2),
+    });
+  }
 
-  return elements;
+  if (bulletLines.length > 0) {
+    sections.push({
+      title: "Belangrijkste kenmerken",
+      paragraphs: [],
+      bullets: bulletLines,
+    });
+  }
+
+  return (
+    <div className="space-y-8">
+      {sections.map((section, sectionIndex) => (
+        <div key={`section-${sectionIndex}`} className="space-y-4">
+          {section.title ? (
+            <h3 className="text-lg font-semibold text-neutral-900">
+              {section.title}
+            </h3>
+          ) : null}
+
+          {section.paragraphs.map((paragraph, paragraphIndex) => (
+            <p
+              key={`section-${sectionIndex}-paragraph-${paragraphIndex}`}
+              className="text-[16px] leading-7 text-neutral-700"
+            >
+              {paragraph}
+            </p>
+          ))}
+
+          {section.bullets && section.bullets.length > 0 ? (
+            <ul className="space-y-2 pl-5 text-[16px] leading-7 text-neutral-700">
+              {section.bullets.map((item, bulletIndex) => (
+                <li
+                  key={`section-${sectionIndex}-bullet-${bulletIndex}`}
+                  className="list-disc"
+                >
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default async function ListingDetailPage({
@@ -165,23 +318,25 @@ export default async function ListingDetailPage({
             />
 
             <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-              <h2 className="mb-4 text-2xl font-semibold text-neutral-900">
+              <h2 className="mb-6 text-2xl font-semibold text-neutral-900">
                 Omschrijving
               </h2>
 
-              <div className="space-y-4 text-base leading-8 text-neutral-700">
+              <div className="max-w-3xl">
                 {renderDescription(listing.description)}
               </div>
-            </section>
 
-            {listing.latitude && listing.longitude && (
-              <ListingMap
-                address={listing.street || "Onbekend adres"}
-                city={listing.city || ""}
-                lat={listing.latitude}
-                lng={listing.longitude}
-              />
-            )}
+              {listing.latitude && listing.longitude && (
+                <div className="mt-10">
+                  <ListingMap
+                    address={listing.street || "Onbekend adres"}
+                    city={listing.city || ""}
+                    lat={listing.latitude}
+                    lng={listing.longitude}
+                  />
+                </div>
+              )}
+            </section>
 
             <ListingLeadForm
               listingId={listing.id}

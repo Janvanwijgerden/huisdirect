@@ -5,11 +5,8 @@ import {
   ArrowRight,
   CheckCircle2,
   Euro,
-  Home,
   MapPin,
-  Ruler,
   Sparkles,
-  Wallet,
 } from "lucide-react";
 
 declare global {
@@ -26,12 +23,13 @@ declare global {
 }
 
 type Props = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: any;
 };
 
 type SelectedAddress = {
   street: string;
   houseNumber: string;
+  houseNumberAddition: string;
   postalCode: string;
   city: string;
   province: string;
@@ -41,9 +39,24 @@ type SelectedAddress = {
 };
 
 type BagData = {
-  woonoppervlakte?: number | string;
-  bouwjaar?: number | string;
-  woningtype?: string;
+  street?: string;
+  city?: string;
+  postal_code?: string;
+  house_number?: string;
+  house_number_addition?: string;
+  house_letter?: string;
+  plot_size?: number | string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+
+  living_area?: number | string | null;
+  year_built?: number | string | null;
+  property_type?: string | null;
+
+  bag_address_id?: string | null;
+  bag_object_id?: string | null;
+  bag_pand_id?: string | null;
+
   wozWaarde?: number | string;
   estimatedValueLow?: number | string;
   estimatedValueMid?: number | string;
@@ -52,6 +65,12 @@ type BagData = {
   valuationConfidence?: number | string;
   valuationSource?: string;
   valuationModelVersion?: string;
+};
+
+type BagResponse = {
+  success?: boolean;
+  source?: string;
+  data?: BagData | null;
 };
 
 function getAddressComponent(
@@ -69,9 +88,17 @@ function getAddressComponent(
 function buildGeneratedTitle(selectedAddress: SelectedAddress | null) {
   if (!selectedAddress) return "";
 
-  const fullStreet = `${selectedAddress.street} ${selectedAddress.houseNumber}`.trim();
-  if (fullStreet && selectedAddress.city) {
-    return `${fullStreet}, ${selectedAddress.city}`;
+  const streetLine = [
+    selectedAddress.street,
+    selectedAddress.houseNumber,
+    selectedAddress.houseNumberAddition,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  if (streetLine && selectedAddress.city) {
+    return `${streetLine}, ${selectedAddress.city}`;
   }
 
   return "";
@@ -87,17 +114,77 @@ function formatPrice(value?: string | number) {
   }).format(amount);
 }
 
-async function fetchBagData(postcode: string, huisnummer: string) {
-  const res = await fetch(
-    `/api/bag?postcode=${encodeURIComponent(postcode)}&huisnummer=${encodeURIComponent(
-      huisnummer
-    )}`
-  );
+function normalizeCoordinate(value?: string | number | null) {
+  if (value === null || value === undefined || value === "") return "";
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? String(parsed) : "";
+}
 
+function normalizePropertyTypeForForm(value?: string | null) {
+  const input = String(value || "").trim().toLowerCase();
+
+  if (!input) return "";
+  if (input === "vrijstaande_woning") return "vrijstaand";
+  if (input === "twee_onder_een_kap") return "twee-onder-een-kap";
+  if (input === "hoek_woning") return "hoekwoning";
+  if (input === "tussen_woning") return "tussenwoning";
+  return input;
+}
+
+function buildRecognizedAddress(selectedAddress: SelectedAddress | null) {
+  if (!selectedAddress) return "";
+
+  const streetLine = [
+    selectedAddress.street,
+    selectedAddress.houseNumber,
+    selectedAddress.houseNumberAddition,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return [streetLine, selectedAddress.postalCode, selectedAddress.city]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatNumberInput(value: string) {
+  const digits = digitsOnly(value);
+  if (!digits) return "";
+  return new Intl.NumberFormat("nl-NL").format(Number(digits));
+}
+
+function parseFormattedNumber(value: string) {
+  const digits = digitsOnly(value);
+  if (!digits) return null;
+
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function fetchBagData(
+  postcode: string,
+  huisnummer: string,
+  houseNumberAddition?: string
+): Promise<BagResponse> {
+  const params = new URLSearchParams({
+    postcode,
+    huisnummer,
+  });
+
+  if (houseNumberAddition?.trim()) {
+    params.set("house_number_addition", houseNumberAddition.trim());
+  }
+
+  const res = await fetch(`/api/bag?${params.toString()}`);
   const json = await res.json();
 
   if (!res.ok) {
-    throw new Error(json?.error || "BAG data ophalen mislukt.");
+    throw new Error(json?.details || json?.error || "BAG data ophalen mislukt.");
   }
 
   return json;
@@ -105,6 +192,7 @@ async function fetchBagData(postcode: string, huisnummer: string) {
 
 export default function NewListingStartForm({ action }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const [selectedAddress, setSelectedAddress] = useState<SelectedAddress | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
@@ -114,15 +202,82 @@ export default function NewListingStartForm({ action }: Props) {
   const [propertyType, setPropertyType] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
   const [livingArea, setLivingArea] = useState("");
-
   const [yearBuilt, setYearBuilt] = useState("");
+  const [plotSize, setPlotSize] = useState("");
+
   const [bagData, setBagData] = useState<BagData | null>(null);
   const [bagLoading, setBagLoading] = useState(false);
   const [bagError, setBagError] = useState("");
 
+  const [askingPriceTouched, setAskingPriceTouched] = useState(false);
+  const [livingAreaTouched, setLivingAreaTouched] = useState(false);
+  const [plotSizeTouched, setPlotSizeTouched] = useState(false);
+  const [yearBuiltTouched, setYearBuiltTouched] = useState(false);
+
   const generatedTitle = useMemo(() => {
     return buildGeneratedTitle(selectedAddress);
   }, [selectedAddress]);
+
+  const askingPriceNumber = useMemo(
+    () => parseFormattedNumber(askingPrice),
+    [askingPrice]
+  );
+  const livingAreaNumber = useMemo(
+    () => parseFormattedNumber(livingArea),
+    [livingArea]
+  );
+  const plotSizeNumber = useMemo(
+    () => parseFormattedNumber(plotSize),
+    [plotSize]
+  );
+  const yearBuiltNumber = useMemo(
+    () => parseFormattedNumber(yearBuilt),
+    [yearBuilt]
+  );
+
+  const askingPriceError =
+    askingPriceTouched && askingPrice
+      ? askingPriceNumber === null
+        ? "Voer een geldig bedrag in."
+        : askingPriceNumber < 100000
+        ? "Minimaal € 100.000."
+        : askingPriceNumber % 1000 !== 0
+        ? "Gebruik hele duizenden, bijvoorbeeld € 425.000."
+        : null
+      : null;
+
+  const livingAreaError =
+    livingAreaTouched && livingArea
+      ? livingAreaNumber === null
+        ? "Voer een geldig aantal m² in."
+        : livingAreaNumber < 10
+        ? "Minimaal 10 m²."
+        : null
+      : null;
+
+  const plotSizeError =
+    plotSizeTouched && plotSize
+      ? plotSizeNumber === null
+        ? "Voer een geldig aantal m² in."
+        : plotSizeNumber < 10
+        ? "Minimaal 10 m²."
+        : null
+      : null;
+
+  const currentYear = new Date().getFullYear();
+
+  const yearBuiltError =
+    yearBuiltTouched && yearBuilt
+      ? yearBuiltNumber === null
+        ? "Voer een geldig bouwjaar in."
+        : yearBuiltNumber < 1700 || yearBuiltNumber > currentYear + 1
+        ? `Kies een bouwjaar tussen 1700 en ${currentYear + 1}.`
+        : null
+      : null;
+
+  const formHasValidationErrors = Boolean(
+    askingPriceError || livingAreaError || plotSizeError || yearBuiltError
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -213,6 +368,18 @@ export default function NewListingStartForm({ action }: Props) {
               ? String(place.location.lng())
               : "";
 
+          const baseAddress: SelectedAddress = {
+            street,
+            houseNumber,
+            houseNumberAddition: "",
+            postalCode,
+            city,
+            province,
+            lat,
+            lng,
+            formattedAddress: place.formattedAddress || "",
+          };
+
           if (!houseNumber) {
             setSelectedAddress(null);
             setAddressNeedsHouseNumber(true);
@@ -220,59 +387,103 @@ export default function NewListingStartForm({ action }: Props) {
             setBagData(null);
             setBagError("");
             setPropertyType("");
+            setAskingPrice("");
             setLivingArea("");
             setYearBuilt("");
+            setPlotSize("");
             return;
           }
 
           setAddressNeedsHouseNumber(false);
           setGoogleError("");
-          setSelectedAddress({
-            street,
-            houseNumber,
-            postalCode,
-            city,
-            province,
-            lat,
-            lng,
-            formattedAddress: place.formattedAddress || "",
-          });
+          setBagError("");
+          setSelectedAddress(baseAddress);
 
           if (postalCode && houseNumber) {
             try {
               setBagLoading(true);
-              setBagError("");
+
               const bag = await fetchBagData(postalCode, houseNumber);
               const normalizedBagData: BagData | null = bag?.data || null;
 
+              if (cancelled) return;
+
               setBagData(normalizedBagData);
 
-              if (normalizedBagData?.woningtype) {
-                setPropertyType(String(normalizedBagData.woningtype));
+              if (normalizedBagData) {
+                setSelectedAddress({
+                  street: normalizedBagData.street || street,
+                  houseNumber: String(normalizedBagData.house_number || houseNumber),
+                  houseNumberAddition: String(
+                    normalizedBagData.house_number_addition || ""
+                  ),
+                  postalCode: String(
+                    normalizedBagData.postal_code || postalCode
+                  ).toUpperCase(),
+                  city: normalizedBagData.city || city,
+                  province,
+                  lat: normalizeCoordinate(normalizedBagData.latitude) || lat,
+                  lng: normalizeCoordinate(normalizedBagData.longitude) || lng,
+                  formattedAddress: place.formattedAddress || "",
+                });
+
+                if (normalizedBagData.property_type) {
+                  setPropertyType(
+                    normalizePropertyTypeForForm(normalizedBagData.property_type)
+                  );
+                } else {
+                  setPropertyType("");
+                }
+
+                if (
+                  normalizedBagData.living_area !== null &&
+                  normalizedBagData.living_area !== undefined &&
+                  normalizedBagData.living_area !== ""
+                ) {
+                  setLivingArea(formatNumberInput(String(normalizedBagData.living_area)));
+                } else {
+                  setLivingArea("");
+                }
+
+                if (
+                  normalizedBagData.year_built !== null &&
+                  normalizedBagData.year_built !== undefined &&
+                  normalizedBagData.year_built !== ""
+                ) {
+                  setYearBuilt(String(normalizedBagData.year_built));
+                } else {
+                  setYearBuilt("");
+                }
+
+                if (
+                  normalizedBagData.plot_size !== null &&
+                  normalizedBagData.plot_size !== undefined &&
+                  normalizedBagData.plot_size !== ""
+                ) {
+                  setPlotSize(formatNumberInput(String(normalizedBagData.plot_size)));
+                } else {
+                  setPlotSize("");
+                }
               } else {
+                setBagData(null);
                 setPropertyType("");
-              }
-
-              if (normalizedBagData?.woonoppervlakte) {
-                setLivingArea(String(normalizedBagData.woonoppervlakte));
-              } else {
                 setLivingArea("");
-              }
-
-              if (normalizedBagData?.bouwjaar) {
-                setYearBuilt(String(normalizedBagData.bouwjaar));
-              } else {
                 setYearBuilt("");
+                setPlotSize("");
               }
             } catch (error) {
               console.error(error);
+              if (cancelled) return;
               setBagData(null);
               setBagError("Basisgegevens konden nog niet automatisch worden geladen.");
               setPropertyType("");
               setLivingArea("");
               setYearBuilt("");
+              setPlotSize("");
             } finally {
-              setBagLoading(false);
+              if (!cancelled) {
+                setBagLoading(false);
+              }
             }
           }
         });
@@ -316,25 +527,33 @@ export default function NewListingStartForm({ action }: Props) {
     };
   }, []);
 
-  const fullRecognizedAddress = selectedAddress
-    ? [
-        `${selectedAddress.street} ${selectedAddress.houseNumber}`.trim(),
-        selectedAddress.postalCode,
-        selectedAddress.city,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : "";
+  const fullRecognizedAddress = buildRecognizedAddress(selectedAddress);
 
   const addressIsComplete =
     !!selectedAddress?.street &&
     !!selectedAddress?.houseNumber &&
     !!selectedAddress?.city;
 
+  const fieldClass =
+    "h-14 w-full min-w-0 rounded-2xl border border-neutral-200 bg-white px-4 text-base text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100";
+
+  const fieldErrorClass =
+    "border-red-300 focus:border-red-400 focus:ring-red-100";
+
+  const handleManualSubmit = () => {
+    setAskingPriceTouched(true);
+    setLivingAreaTouched(true);
+    setPlotSizeTouched(true);
+    setYearBuiltTouched(true);
+
+    if (!addressIsComplete || !generatedTitle || formHasValidationErrors) return;
+    formRef.current?.requestSubmit();
+  };
+
   return (
     <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
       <div className="px-6 pb-6 pt-6 sm:px-10 sm:pb-10 sm:pt-10">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-3xl">
           <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
             <MapPin className="h-6 w-6 text-emerald-600" />
           </div>
@@ -361,13 +580,32 @@ export default function NewListingStartForm({ action }: Props) {
             </div>
           </div>
 
-          <form action={action} className="mt-8 space-y-6">
+          <form
+            ref={formRef}
+            action={action}
+            className="mt-8 space-y-6"
+            onKeyDownCapture={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+              }
+            }}
+            onSubmit={(event) => {
+              if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
+                event.preventDefault();
+              }
+            }}
+          >
             <input type="hidden" name="title" value={generatedTitle} />
             <input type="hidden" name="street" value={selectedAddress?.street || ""} />
             <input
               type="hidden"
               name="house_number"
               value={selectedAddress?.houseNumber || ""}
+            />
+            <input
+              type="hidden"
+              name="house_number_addition"
+              value={selectedAddress?.houseNumberAddition || ""}
             />
             <input
               type="hidden"
@@ -382,6 +620,103 @@ export default function NewListingStartForm({ action }: Props) {
             />
             <input type="hidden" name="lat" value={selectedAddress?.lat || ""} />
             <input type="hidden" name="lng" value={selectedAddress?.lng || ""} />
+
+            <input type="hidden" name="property_type" value={propertyType} />
+            <input
+              type="hidden"
+              name="asking_price"
+              value={askingPriceNumber ? String(askingPriceNumber) : ""}
+            />
+            <input
+              type="hidden"
+              name="living_area"
+              value={digitsOnly(livingArea)}
+            />
+            <input
+              type="hidden"
+              name="plot_size"
+              value={digitsOnly(plotSize)}
+            />
+            <input
+              type="hidden"
+              name="year_built"
+              value={digitsOnly(yearBuilt)}
+            />
+
+            <input
+              type="hidden"
+              name="bag_address_id"
+              value={bagData?.bag_address_id || ""}
+            />
+            <input
+              type="hidden"
+              name="bag_object_id"
+              value={bagData?.bag_object_id || ""}
+            />
+            <input
+              type="hidden"
+              name="bag_pand_id"
+              value={bagData?.bag_pand_id || ""}
+            />
+
+            <input
+              type="hidden"
+              name="source_street"
+              value={bagData?.street || selectedAddress?.street || ""}
+            />
+            <input
+              type="hidden"
+              name="source_house_number"
+              value={bagData?.house_number || selectedAddress?.houseNumber || ""}
+            />
+            <input
+              type="hidden"
+              name="source_house_number_addition"
+              value={
+                bagData?.house_number_addition ||
+                selectedAddress?.houseNumberAddition ||
+                ""
+              }
+            />
+            <input
+              type="hidden"
+              name="source_postal_code"
+              value={bagData?.postal_code || selectedAddress?.postalCode || ""}
+            />
+            <input
+              type="hidden"
+              name="source_city"
+              value={bagData?.city || selectedAddress?.city || ""}
+            />
+            <input
+              type="hidden"
+              name="source_lat"
+              value={
+                normalizeCoordinate(bagData?.latitude) || selectedAddress?.lat || ""
+              }
+            />
+            <input
+              type="hidden"
+              name="source_lng"
+              value={
+                normalizeCoordinate(bagData?.longitude) || selectedAddress?.lng || ""
+              }
+            />
+            <input
+              type="hidden"
+              name="source_build_year"
+              value={bagData?.year_built || ""}
+            />
+            <input
+              type="hidden"
+              name="source_living_area"
+              value={digitsOnly(livingArea)}
+            />
+            <input
+              type="hidden"
+              name="source_property_type"
+              value={bagData?.property_type || ""}
+            />
 
             <input
               type="hidden"
@@ -515,8 +850,8 @@ export default function NewListingStartForm({ action }: Props) {
               )}
             </div>
 
-            <div className="rounded-[28px] border border-neutral-200 bg-white p-4 sm:p-5">
-              <div className="mb-4">
+            <div className="rounded-[28px] border border-neutral-200 bg-white p-5 sm:p-6">
+              <div className="mb-5">
                 <h2 className="text-sm font-semibold text-neutral-900">
                   Extra basisinfo
                 </h2>
@@ -525,21 +860,19 @@ export default function NewListingStartForm({ action }: Props) {
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
+              <div className="grid gap-x-6 gap-y-6 sm:grid-cols-2 lg:grid-cols-12">
+                <div className="sm:col-span-1 lg:col-span-4">
                   <label
                     htmlFor="property_type"
-                    className="mb-2 flex items-center gap-2 text-sm font-medium text-neutral-700"
+                    className="mb-2 block text-sm font-medium text-neutral-700"
                   >
-                    <Home className="h-4 w-4 text-neutral-400" />
                     Woningtype
                   </label>
                   <select
                     id="property_type"
-                    name="property_type"
                     value={propertyType}
                     onChange={(event) => setPropertyType(event.target.value)}
-                    className="h-12 w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 text-sm text-neutral-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                    className={fieldClass}
                   >
                     <option value="">Kies later</option>
                     <option value="eengezinswoning">Eengezinswoning</option>
@@ -551,64 +884,124 @@ export default function NewListingStartForm({ action }: Props) {
                   </select>
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="asking_price"
-                    className="mb-2 flex items-center gap-2 text-sm font-medium text-neutral-700"
-                  >
-                    <Wallet className="h-4 w-4 text-neutral-400" />
-                    Vraagprijs
-                  </label>
-                  <input
-                    id="asking_price"
-                    name="asking_price"
-                    type="text"
-                    inputMode="numeric"
-                    value={askingPrice}
-                    onChange={(event) => setAskingPrice(event.target.value)}
-                    placeholder="Bijv. 425000"
-                    className="h-12 w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
-                  />
-                </div>
-
-                <div>
+                <div className="sm:col-span-1 lg:col-span-4">
                   <label
                     htmlFor="living_area"
-                    className="mb-2 flex items-center gap-2 text-sm font-medium text-neutral-700"
+                    className="mb-2 block text-sm font-medium text-neutral-700"
                   >
-                    <Ruler className="h-4 w-4 text-neutral-400" />
                     Woonoppervlakte
                   </label>
                   <input
                     id="living_area"
-                    name="living_area"
                     type="text"
                     inputMode="numeric"
                     value={livingArea}
-                    onChange={(event) => setLivingArea(event.target.value)}
+                    onChange={(event) => setLivingArea(formatNumberInput(event.target.value))}
+                    onBlur={() => setLivingAreaTouched(true)}
                     placeholder="Bijv. 136"
-                    className="h-12 w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                    className={`${fieldClass} ${livingAreaError ? fieldErrorClass : ""}`}
                   />
+                  {livingAreaError ? (
+                    <div className="mt-2 text-xs leading-5 text-red-600">
+                      {livingAreaError}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs leading-5 text-neutral-500">
+                      Alleen cijfers. Minimaal 10 m².
+                    </div>
+                  )}
                 </div>
 
-                <div>
+                <div className="sm:col-span-1 lg:col-span-4">
                   <label
                     htmlFor="year_built"
-                    className="mb-2 flex items-center gap-2 text-sm font-medium text-neutral-700"
+                    className="mb-2 block text-sm font-medium text-neutral-700"
                   >
-                    <Home className="h-4 w-4 text-neutral-400" />
                     Bouwjaar
                   </label>
                   <input
                     id="year_built"
-                    name="year_built"
                     type="text"
                     inputMode="numeric"
                     value={yearBuilt}
-                    onChange={(event) => setYearBuilt(event.target.value)}
+                    onChange={(event) => setYearBuilt(digitsOnly(event.target.value).slice(0, 4))}
+                    onBlur={() => setYearBuiltTouched(true)}
                     placeholder="Bijv. 1998"
-                    className="h-12 w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                    className={`${fieldClass} ${yearBuiltError ? fieldErrorClass : ""}`}
                   />
+                  {yearBuiltError ? (
+                    <div className="mt-2 text-xs leading-5 text-red-600">
+                      {yearBuiltError}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs leading-5 text-neutral-500">
+                      Vier cijfers, logisch bouwjaar.
+                    </div>
+                  )}
+                </div>
+
+                <div className="sm:col-span-1 lg:col-span-6">
+                  <label
+                    htmlFor="asking_price"
+                    className="mb-2 block text-sm font-medium text-neutral-700"
+                  >
+                    Vraagprijs
+                  </label>
+                  <input
+                    id="asking_price"
+                    type="text"
+                    inputMode="numeric"
+                    value={askingPrice}
+                    onChange={(event) =>
+                      setAskingPrice(formatNumberInput(digitsOnly(event.target.value)))
+                    }
+                    onBlur={() => setAskingPriceTouched(true)}
+                    placeholder="Bijv. 425000"
+                    className={`${fieldClass} ${askingPriceError ? fieldErrorClass : ""}`}
+                  />
+                  {askingPriceError ? (
+                    <div className="mt-2 text-xs leading-5 text-red-600">
+                      {askingPriceError}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="sm:col-span-1 lg:col-span-6">
+                  <label
+                    htmlFor="plot_size"
+                    className="mb-2 block text-sm font-medium text-neutral-700"
+                  >
+                    Perceeloppervlakte
+                  </label>
+                  <input
+                    id="plot_size"
+                    type="text"
+                    inputMode="numeric"
+                    value={plotSize}
+                    onChange={(event) => setPlotSize(formatNumberInput(event.target.value))}
+                    onBlur={() => setPlotSizeTouched(true)}
+                    placeholder={
+                      propertyType === "vrijstaand"
+                        ? "Bijv. 600"
+                        : propertyType === "tussenwoning"
+                        ? "Bijv. 140"
+                        : "Bijv. 250"
+                    }
+                    className={`${fieldClass} ${plotSizeError ? fieldErrorClass : ""}`}
+                  />
+                  {plotSizeError ? (
+                    <div className="mt-2 text-xs leading-5 text-red-600">
+                      {plotSizeError}
+                    </div>
+                  ) : !plotSize ? (
+                    <div className="mt-2 text-xs leading-5 text-neutral-500">
+                      Perceel onbekend — schatting is prima.
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs leading-5 text-neutral-500">
+                      Alleen cijfers. Minimaal 10 m².
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -664,8 +1057,9 @@ export default function NewListingStartForm({ action }: Props) {
               </div>
 
               <button
-                type="submit"
-                disabled={!addressIsComplete || !generatedTitle}
+                type="button"
+                disabled={!addressIsComplete || !generatedTitle || formHasValidationErrors}
+                onClick={handleManualSubmit}
                 className="group inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 {addressIsComplete ? "Verder met dit adres" : "Kies eerst een volledig adres"}

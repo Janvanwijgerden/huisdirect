@@ -5,7 +5,6 @@ export default function Footer() {
     <footer className="mt-32 bg-stone-950 text-white">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
         <div className="grid grid-cols-1 gap-16 md:grid-cols-4">
-          {/* BRANDING */}
           <div className="max-w-sm">
             <Link href="/" className="inline-flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
@@ -38,7 +37,6 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* NAVIGATIE */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
               Navigatie
@@ -72,7 +70,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* ACCOUNT */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
               Account
@@ -114,7 +111,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* HUISDIRECT */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
               HuisDirect
@@ -122,22 +118,34 @@ export default function Footer() {
 
             <ul className="mt-6 space-y-4 text-sm">
               <li>
-                <Link href="#" className="text-stone-400 transition hover:text-white">
+                <Link
+                  href="#"
+                  className="text-stone-400 transition hover:text-white"
+                >
                   Over ons
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-stone-400 transition hover:text-white">
+                <Link
+                  href="#"
+                  className="text-stone-400 transition hover:text-white"
+                >
                   Contact
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-stone-400 transition hover:text-white">
+                <Link
+                  href="/privacy"
+                  className="text-stone-400 transition hover:text-white"
+                >
                   Privacy
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-stone-400 transition hover:text-white">
+                <Link
+                  href="/voorwaarden"
+                  className="text-stone-400 transition hover:text-white"
+                >
                   Voorwaarden
                 </Link>
               </li>
