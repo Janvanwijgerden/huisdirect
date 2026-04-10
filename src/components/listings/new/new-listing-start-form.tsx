@@ -500,22 +500,20 @@ export default function NewListingStartForm({ action }: Props) {
 
     window.initGooglePlacesAutocomplete = initAutocomplete;
 
-    if (window.google?.maps?.importLibrary) {
-      initAutocomplete();
-    } else {
-      const existingScript = document.getElementById(
-        "google-maps-script"
-      ) as HTMLScriptElement | null;
+if (window.google?.maps?.importLibrary) {
+  initAutocomplete();
+} else {
+  const script = document.createElement("script");
+  script.id = "google-maps-script";
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
+  script.async = true;
 
-      if (!existingScript) {
-        const script = document.createElement("script");
-        script.id = "google-maps-script";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&loading=async&callback=initGooglePlacesAutocomplete`;
-        script.async = true;
-        document.body.appendChild(script);
-      }
-    }
+  script.onload = () => {
+    initAutocomplete();
+  };
 
+  document.body.appendChild(script);
+}
     return () => {
       cancelled = true;
       if (hostRef.current) {

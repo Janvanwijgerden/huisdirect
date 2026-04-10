@@ -108,6 +108,7 @@ export async function POST(req: Request) {
       energyLabel,
       yearBuilt,
       plotSize,
+      features,
     } = body;
 
     const normalizedPropertyType = normalizePropertyType(propertyType);
@@ -126,65 +127,52 @@ export async function POST(req: Request) {
       plotSize,
     });
 
+    const featuresText = features
+      ? JSON.stringify(features)
+      : "Niet opgegeven";
+
     const client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
 
     const prompt = `
-Je bent een sterke Nederlandse woningcopywriter op Funda-niveau.
+Je bent een ervaren Nederlandse makelaar en schrijft woningomschrijvingen op Funda-niveau.
 
-Je schrijft woningomschrijvingen die voelen als:
-- professioneel
-- aantrekkelijk
-- geloofwaardig
-- verkoopgericht
-- prettig leesbaar
-- niet overdreven
+Gebruik de volgende gegevens:
 
-DOEL:
-Schrijf een woningomschrijving die de sterke kanten van de woning benadrukt en aantrekkelijk maakt voor potentiële kopers.
+Type woning: ${normalizedPropertyType}
+Plaats: ${cityLabel}
+Woonoppervlakte: ${livingAreaLabel}
+Aantal kamers: ${bedroomsLabel}
+Bouwjaar: ${yearBuiltText}
+Energielabel: ${energyLabelText}
+Perceeloppervlakte: ${plotSizeText}
 
-BESCHIKBARE GEGEVENS:
-- Type woning: ${normalizedPropertyType}
-- Plaats: ${cityLabel}
-- Woonoppervlakte: ${livingAreaLabel}
-- Aantal kamers: ${bedroomsLabel}
-- Bouwjaar: ${yearBuiltText}
-- Energielabel: ${energyLabelText}
-- Perceeloppervlakte: ${plotSizeText}
+Extra kenmerken (alleen deze mogen benoemd worden):
+${featuresText}
 
-EXTRA SCHRIJFACCENTEN:
-${featureHints.length > 0 ? featureHints.map((hint) => `- ${hint}`).join("\n") : "- benadruk comfort, ruimte en woonkwaliteit"}
+Schrijfaccenten:
+${featureHints.length > 0 ? featureHints.join(", ") : "focus op comfort en woonkwaliteit"}
 
-STIJLREGELS:
-- Schrijf in correct, vloeiend Nederlands
-- Schrijf alsof de woning op een professioneel woningplatform komt te staan
-- Gebruik natuurlijke variatie in zinsbouw
-- Vermijd clichés en herhaling
-- Vermijd steeds dezelfde openingszin
-- Gebruik geen opsommingstekens
-- Gebruik 3 tot 5 korte alinea's
-- Schrijf warm, professioneel en aantrekkelijk
-- Benoem alleen pluspunten en verkoopbare kwaliteiten
-- Noem geen onzekerheden, tekortkomingen of ontbrekende informatie
-- Als informatie ontbreekt, schrijf daar dan soepel omheen in plaats van het te benoemen
-- Laat de tekst uniek aanvoelen, niet als een standaard template
+INSTRUCTIES:
 
-INHOUD:
-- Start met een sterke, aantrekkelijke openingsalinea
-- Werk daarna ruimte, indeling en woongevoel uit
-- Benoem buitenruimte wanneer perceel relevant is
-- Benoem comfort/duurzaamheid subtiel wanneer energielabel of bouwjaar daar aanleiding toe geven
-- Sluit af met een korte, positieve eindsamenvatting
-
-LENGTE:
-- ongeveer 130 tot 190 woorden
+- Schrijf in professioneel, vloeiend Nederlands
+- Gebruik een makelaar-achtige toon (zoals Funda)
+- Begin met een sterke openingszin
+- Verwerk kenmerken subtiel in de tekst (niet als lijst)
+- Benoem leefervaring (licht, ruimte, comfort, ligging)
+- Vermijd overdreven verkooppraat
+- Schrijf alsof iemand direct wil bezichtigen
+- Gebruik 3-5 alinea’s
+- Lengte: ± 130–190 woorden
+- Benoem alleen kenmerken die expliciet in de input staan (verzin niets)
+- Als iets niet bekend is, sla het over
 
 BELANGRIJK:
-- Geen kopjes
 - Geen bullets
-- Geen uitleg buiten de woningtekst
-- Alleen de definitieve woningomschrijving
+- Geen kopjes
+- Geen uitleg buiten de tekst
+- Alleen de woningomschrijving
 `;
 
     const response = await client.responses.create({

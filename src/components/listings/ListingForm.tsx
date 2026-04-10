@@ -52,6 +52,7 @@ function generateListingDescription({
   energyLabel,
   yearBuilt,
   plotSize,
+  features,
 }: {
   propertyType: string;
   city: string;
@@ -60,12 +61,54 @@ function generateListingDescription({
   energyLabel: string;
   yearBuilt: string;
   plotSize: string;
+  features: ListingFeatures;
 }) {
-  const typeLabel = propertyType?.trim()
+    const typeLabel = propertyType?.trim()
     ? formatPropertyTypeLabel(propertyType)
     : "Woning";
 
   const cityLabel = city?.trim() || "de omgeving";
+    const extras: string[] = [];
+
+  if (features.general.condition) {
+    extras.push(`De woning is in ${features.general.condition} staat.`);
+  }
+
+  if (features.layout.rooms) {
+    extras.push(`De woning beschikt over ${features.layout.rooms} kamers.`);
+  }
+
+  if (features.layout.bathrooms) {
+    extras.push(`${features.layout.bathrooms} badkamer(s) aanwezig.`);
+  }
+
+  if (features.outdoor.garden.hasGarden) {
+    let gardenText = "Er is een tuin aanwezig";
+
+    if (features.outdoor.garden.orientation) {
+      gardenText += ` op het ${features.outdoor.garden.orientation}`;
+    }
+
+    if (features.outdoor.garden.size) {
+      gardenText += ` van circa ${features.outdoor.garden.size} m²`;
+    }
+
+    extras.push(gardenText + ".");
+  }
+
+  if (features.extras.solarPanels) {
+    extras.push("Voorzien van zonnepanelen.");
+  }
+
+  if (features.extras.airco) {
+    extras.push("Uitgerust met airconditioning.");
+  }
+
+  if (features.extras.fireplace) {
+    extras.push("Sfeervolle open haard aanwezig.");
+  }
+
+  const extrasText = extras.length ? "\n\n" + extras.join(" ") : "";
 
   return `Deze ${typeLabel.toLowerCase()} in ${cityLabel} biedt een fijne combinatie van ruimte, comfort en praktisch wonen. Met een woonoppervlakte van ${livingArea || "—"} m² en ${bedrooms || "—"} kamers is dit een woning met volop mogelijkheden.
 
@@ -77,7 +120,179 @@ De woning is gebouwd in ${yearBuilt || "—"} en beschikt over energielabel ${en
 
 Gelegen in ${cityLabel}, met voorzieningen en bereikbaarheid binnen handbereik.
 
-Kortom: een woning met comfort, ruimte en potentie.`;
+Kortom: een woning met comfort, ruimte en potentie.` + extrasText;
+}
+type ListingFeatures = {
+  general: {
+    condition: string;
+    availability: string;
+    constructionType: string;
+  };
+  layout: {
+    rooms: string;
+    bedrooms: string;
+    bathrooms: string;
+    floors: string;
+  };
+  areas: {
+    livingArea: string;
+    plotSize: string;
+    volume: string;
+  };
+  energy: {
+    label: string;
+    insulation: string[];
+    heating: string[];
+    hotWater: string[];
+  };
+  outdoor: {
+    garden: {
+      hasGarden: boolean;
+      orientation: string;
+      size: string;
+    };
+    balcony: boolean;
+    roofTerrace: boolean;
+  };
+  parking: {
+    type: string[];
+    spaces: string;
+  };
+  storage: {
+    hasStorage: boolean;
+    type: string;
+  };
+  garage: {
+    hasGarage: boolean;
+    type: string;
+  };
+  extras: {
+    airco: boolean;
+    solarPanels: boolean;
+    elevator: boolean;
+    swimmingPool: boolean;
+    fireplace: boolean;
+  };
+  location: {
+    type: string;
+    nearby: string[];
+  };
+};
+
+const defaultFeatures: ListingFeatures = {
+  general: {
+    condition: "",
+    availability: "",
+    constructionType: "",
+  },
+  layout: {
+    rooms: "",
+    bedrooms: "",
+    bathrooms: "",
+    floors: "",
+  },
+  areas: {
+    livingArea: "",
+    plotSize: "",
+    volume: "",
+  },
+  energy: {
+    label: "",
+    insulation: [],
+    heating: [],
+    hotWater: [],
+  },
+  outdoor: {
+    garden: {
+      hasGarden: false,
+      orientation: "",
+      size: "",
+    },
+    balcony: false,
+    roofTerrace: false,
+  },
+  parking: {
+    type: [],
+    spaces: "",
+  },
+  storage: {
+    hasStorage: false,
+    type: "",
+  },
+  garage: {
+    hasGarage: false,
+    type: "",
+  },
+  extras: {
+    airco: false,
+    solarPanels: false,
+    elevator: false,
+    swimmingPool: false,
+    fireplace: false,
+  },
+  location: {
+    type: "",
+    nearby: [],
+  },
+};
+
+function normalizeFeatures(input: any): ListingFeatures {
+  return {
+    general: {
+      condition: input?.general?.condition || "",
+      availability: input?.general?.availability || "",
+      constructionType: input?.general?.constructionType || "",
+    },
+    layout: {
+      rooms: input?.layout?.rooms ? String(input.layout.rooms) : "",
+      bedrooms: input?.layout?.bedrooms ? String(input.layout.bedrooms) : "",
+      bathrooms: input?.layout?.bathrooms ? String(input.layout.bathrooms) : "",
+      floors: input?.layout?.floors ? String(input.layout.floors) : "",
+    },
+    areas: {
+      livingArea: input?.areas?.livingArea ? String(input.areas.livingArea) : "",
+      plotSize: input?.areas?.plotSize ? String(input.areas.plotSize) : "",
+      volume: input?.areas?.volume ? String(input.areas.volume) : "",
+    },
+    energy: {
+      label: input?.energy?.label || "",
+      insulation: Array.isArray(input?.energy?.insulation) ? input.energy.insulation : [],
+      heating: Array.isArray(input?.energy?.heating) ? input.energy.heating : [],
+      hotWater: Array.isArray(input?.energy?.hotWater) ? input.energy.hotWater : [],
+    },
+    outdoor: {
+      garden: {
+        hasGarden: Boolean(input?.outdoor?.garden?.hasGarden),
+        orientation: input?.outdoor?.garden?.orientation || "",
+        size: input?.outdoor?.garden?.size ? String(input.outdoor.garden.size) : "",
+      },
+      balcony: Boolean(input?.outdoor?.balcony),
+      roofTerrace: Boolean(input?.outdoor?.roofTerrace),
+    },
+    parking: {
+      type: Array.isArray(input?.parking?.type) ? input.parking.type : [],
+      spaces: input?.parking?.spaces ? String(input.parking.spaces) : "",
+    },
+    storage: {
+      hasStorage: Boolean(input?.storage?.hasStorage),
+      type: input?.storage?.type || "",
+    },
+    garage: {
+      hasGarage: Boolean(input?.garage?.hasGarage),
+      type: input?.garage?.type || "",
+    },
+    extras: {
+      airco: Boolean(input?.extras?.airco),
+      solarPanels: Boolean(input?.extras?.solarPanels),
+      elevator: Boolean(input?.extras?.elevator),
+      swimmingPool: Boolean(input?.extras?.swimmingPool),
+      fireplace: Boolean(input?.extras?.fireplace),
+    },
+    location: {
+      type: input?.location?.type || "",
+      nearby: Array.isArray(input?.location?.nearby) ? input.location.nearby : [],
+    },
+  };
 }
 
 export default function ListingFormC({
@@ -130,6 +345,9 @@ export default function ListingFormC({
   );
   const [description, setDescription] = useState(listing.description || "");
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [features, setFeatures] = useState<ListingFeatures>(
+    normalizeFeatures(listing.features || defaultFeatures)
+  );
 
   // Slim titelvoorstel: alleen zolang gebruiker titel niet zelf heeft aangepast
   useEffect(() => {
@@ -246,7 +464,55 @@ try {
 
   const doneCount = requiredItems.filter((item) => item.done).length;
   const progress = Math.round((doneCount / requiredItems.length) * 100);
+const updateFeature = (
+  category: keyof ListingFeatures,
+  key: string,
+  value: any
+) => {
+  setFeatures((prev) => ({
+    ...prev,
+    [category]: {
+      ...prev[category],
+      [key]: value,
+    },
+  }));
+};
+const updateNestedGardenFeature = (
+  key: keyof ListingFeatures["outdoor"]["garden"],
+  value: ListingFeatures["outdoor"]["garden"][typeof key]
+) => {
+  setFeatures((prev) => ({
+    ...prev,
+    outdoor: {
+      ...prev.outdoor,
+      garden: {
+        ...prev.outdoor.garden,
+        [key]: value,
+      },
+    },
+  }));
+};
 
+const toggleArrayFeature = (
+  category: "energy" | "parking" | "location",
+  key: string,
+  value: string
+) => {
+  setFeatures((prev) => {
+    const currentValues = ((prev as any)[category][key] || []) as string[];
+    const exists = currentValues.includes(value);
+
+    return {
+      ...prev,
+      [category]: {
+        ...(prev as any)[category],
+        [key]: exists
+          ? currentValues.filter((item) => item !== value)
+          : [...currentValues, value],
+      },
+    };
+  });
+};
 const handleGenerateDescription = async () => {
   setIsGeneratingDescription(true);
 
@@ -264,6 +530,7 @@ const handleGenerateDescription = async () => {
         energyLabel,
         yearBuilt,
         plotSize,
+        features,
       }),
     });
 
@@ -354,9 +621,13 @@ const handleSaveAndPublish = async () => {
         </div>
       )}
 
-      <form ref={formRef} action={handleSaveDraft} id="draft-form" className="space-y-6">
-        {children}
-
+<form ref={formRef} action={handleSaveDraft} id="draft-form" className="space-y-6">
+  {children}
+  <input
+    type="hidden"
+    name="features"
+    value={JSON.stringify(features)}
+  />
         <section className={sectionClass}>
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -609,6 +880,297 @@ const handleSaveAndPublish = async () => {
             </div>
           </div>
         </section>
+     <section className={sectionClass}>
+  <div className="flex items-start justify-between gap-4">
+    <div>
+      <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
+        Extra kenmerken
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-stone-500">
+        Hoe meer relevante kenmerken je invult, hoe sterker je woning overkomt en hoe beter de AI straks een verkoopgerichte omschrijving kan schrijven.
+      </p>
+    </div>
+    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+      Funda+
+    </span>
+  </div>
+
+  <div className="mt-6 space-y-8">
+    <div>
+      <h3 className="text-base font-semibold text-stone-900">Algemeen</h3>
+      <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Staat van onderhoud
+          </label>
+          <select
+            value={features.general.condition}
+            onChange={(e) =>
+              updateFeature("general", "condition", e.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Nog niet gekozen</option>
+            <option value="uitstekend">Uitstekend</option>
+            <option value="goed">Goed</option>
+            <option value="redelijk">Redelijk</option>
+            <option value="matig">Matig</option>
+            <option value="te_renoveren">Te renoveren</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Beschikbaarheid
+          </label>
+          <select
+            value={features.general.availability}
+            onChange={(e) =>
+              updateFeature("general", "availability", e.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Nog niet gekozen</option>
+            <option value="direct">Direct beschikbaar</option>
+            <option value="in_overleg">In overleg</option>
+            <option value="op_termijn">Op termijn</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Soort bouw
+          </label>
+          <select
+            value={features.general.constructionType}
+            onChange={(e) =>
+              updateFeature("general", "constructionType", e.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Nog niet gekozen</option>
+            <option value="bestaande_bouw">Bestaande bouw</option>
+            <option value="nieuwbouw">Nieuwbouw</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 className="text-base font-semibold text-stone-900">Indeling</h3>
+      <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Aantal kamers
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={features.layout.rooms}
+            onChange={(e) =>
+              updateFeature("layout", "rooms", e.target.value)
+            }
+            placeholder="Bijv. 5"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Badkamers
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={features.layout.bathrooms}
+            onChange={(e) =>
+              updateFeature("layout", "bathrooms", e.target.value)
+            }
+            placeholder="Bijv. 1"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Woonlagen
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={features.layout.floors}
+            onChange={(e) =>
+              updateFeature("layout", "floors", e.target.value)
+            }
+            placeholder="Bijv. 2"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Inhoud (m³)
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={features.areas.volume}
+            onChange={(e) =>
+              updateFeature("areas", "volume", e.target.value)
+            }
+            placeholder="Bijv. 450"
+            className={inputClass}
+          />
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 className="text-base font-semibold text-stone-900">Buitenruimte</h3>
+      <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.outdoor.garden.hasGarden}
+            onChange={(e) =>
+              updateNestedGardenFeature("hasGarden", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Tuin aanwezig
+        </label>
+
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.outdoor.balcony}
+            onChange={(e) =>
+              updateFeature("outdoor", "balcony", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Balkon
+        </label>
+
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.outdoor.roofTerrace}
+            onChange={(e) =>
+              updateFeature("outdoor", "roofTerrace", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Dakterras
+        </label>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Ligging tuin
+          </label>
+          <select
+            value={features.outdoor.garden.orientation}
+            onChange={(e) =>
+              updateNestedGardenFeature("orientation", e.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="">Nog niet gekozen</option>
+            <option value="noord">Noord</option>
+            <option value="oost">Oost</option>
+            <option value="zuid">Zuid</option>
+            <option value="west">West</option>
+            <option value="noordoost">Noordoost</option>
+            <option value="zuidoost">Zuidoost</option>
+            <option value="zuidwest">Zuidwest</option>
+            <option value="noordwest">Noordwest</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-800">
+            Tuingrootte (m²)
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={features.outdoor.garden.size}
+            onChange={(e) =>
+              updateNestedGardenFeature("size", e.target.value)
+            }
+            placeholder="Bijv. 85"
+            className={inputClass}
+          />
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 className="text-base font-semibold text-stone-900">Extra’s</h3>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.extras.airco}
+            onChange={(e) =>
+              updateFeature("extras", "airco", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Airco
+        </label>
+
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.extras.solarPanels}
+            onChange={(e) =>
+              updateFeature("extras", "solarPanels", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Zonnepanelen
+        </label>
+
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.extras.fireplace}
+            onChange={(e) =>
+              updateFeature("extras", "fireplace", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Open haard
+        </label>
+
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.extras.elevator}
+            onChange={(e) =>
+              updateFeature("extras", "elevator", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Lift
+        </label>
+
+        <label className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800">
+          <input
+            type="checkbox"
+            checked={features.extras.swimmingPool}
+            onChange={(e) =>
+              updateFeature("extras", "swimmingPool", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+          />
+          Zwembad
+        </label>
+      </div>
+    </div>
+  </div>
+</section>   
 
 <section className={sectionClass}>
   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
