@@ -4,6 +4,8 @@ import { createClient } from "../supabase/server";
 import { redirect } from "next/navigation";
 
 function getAuthErrorMessage(error: any): string {
+  console.error("SUPABASE ERROR:", error);
+
   const message = error?.message?.toLowerCase() || "";
 
   if (message.includes("invalid login credentials")) {
@@ -42,7 +44,7 @@ function getAuthErrorMessage(error: any): string {
     return "Je sessie is verlopen. Vraag opnieuw een resetlink aan.";
   }
 
-  return "Er ging iets mis. Probeer het opnieuw.";
+  return error?.message || "Er ging iets mis. Probeer het opnieuw.";
 }
 
 export async function signIn(prevState: any, formData: FormData) {
@@ -71,11 +73,14 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://huisdirect.nl";
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
+      emailRedirectTo: `${siteUrl}/auth/confirm`,
     },
   });
 
@@ -85,7 +90,9 @@ export async function signUp(formData: FormData) {
     };
   }
 
-  redirect("/auth/register/success");
+  return {
+    success: true,
+  };
 }
 
 export async function requestPasswordReset(formData: FormData) {
@@ -93,8 +100,11 @@ export async function requestPasswordReset(formData: FormData) {
 
   const email = formData.get("email") as string;
 
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://huisdirect.nl";
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+    redirectTo: `${siteUrl}/auth/update-password`,
   });
 
   if (error) {

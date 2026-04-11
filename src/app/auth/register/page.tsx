@@ -78,7 +78,16 @@ export default function RegisterPage() {
     if (result?.error) {
       setError(result.error);
       setLoading(false);
+      return;
     }
+
+    if (result?.success) {
+      window.location.href = "/auth/register/success";
+      return;
+    }
+
+    setLoading(false);
+    setError("Er ging iets mis. Probeer het opnieuw.");
   }
 
   return (
