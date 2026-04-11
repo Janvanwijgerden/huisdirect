@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import ListingDetailPage from "@/app/(main)/listings/[id]/page";
+import { createClient } from "../../../../lib/supabase/server";
+import ListingDetailPage from "../../listings/[id]/page";
 
 type HouseSlugPageProps = {
   params: {
@@ -17,7 +17,7 @@ export default async function HouseSlugPage({
     notFound();
   }
 
-  const supabase = await createClient();
+  const supabase = createClient();
 
   const { data: listing, error } = await supabase
     .from("listings")

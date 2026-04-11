@@ -1,5 +1,5 @@
 import { createDraftListing } from "../../../../lib/actions/listings";
-import NewListingStartForm from "@/components/listings/new/new-listing-start-form";
+import NewListingStartForm from "../../../../components/listings/new/new-listing-start-form";
 
 export default function NewListingPage() {
   return (

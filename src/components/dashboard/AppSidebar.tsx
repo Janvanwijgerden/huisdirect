@@ -11,7 +11,7 @@ import {
   Settings,
   Building2,
 } from "lucide-react";
-import { signOut } from "@/lib/actions/auth";
+import { signOut } from "../../lib/actions/auth";
 
 type AppSidebarProps = {
   listingCount?: number;

@@ -1,6 +1,6 @@
 "use client";
 
-import { deleteListing, unpublishListing } from "@/lib/actions/listings";
+import { deleteListing, unpublishListing } from "../../lib/actions/listings";
 
 type ListingManagementActionsProps = {
   listingId: string;

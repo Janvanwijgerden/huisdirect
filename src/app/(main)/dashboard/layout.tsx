@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { getUserListings } from "../../../lib/actions/listings";
-import AppSidebar from "@/components/dashboard/AppSidebar";
+import AppSidebar from "../../../components/dashboard/AppSidebar";
 
 type Props = {
   children: ReactNode;
