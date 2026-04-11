@@ -500,9 +500,11 @@ export default function NewListingStartForm({ action }: Props) {
 
     window.initGooglePlacesAutocomplete = initAutocomplete;
 
+const existingScript = document.getElementById("google-maps-script");
+
 if (window.google?.maps?.importLibrary) {
   initAutocomplete();
-} else {
+} else if (!existingScript) {
   const script = document.createElement("script");
   script.id = "google-maps-script";
   script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
@@ -513,8 +515,9 @@ if (window.google?.maps?.importLibrary) {
   };
 
   document.body.appendChild(script);
-}
-    return () => {
+} else {
+  existingScript.addEventListener("load", initAutocomplete);
+}    return () => {
       cancelled = true;
       if (hostRef.current) {
         hostRef.current.innerHTML = "";

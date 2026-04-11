@@ -50,17 +50,20 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/25" />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 md:py-24 lg:px-8">
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 md:py-24 lg:px-8">
           <div className="max-w-2xl">
-            <span className="mb-5 inline-block text-sm font-semibold uppercase tracking-[0.2em] text-stone-200">
+            <span className="mb-5 inline-block text-xs font-semibold uppercase tracking-[0.18em] text-stone-200 sm:text-sm sm:tracking-[0.2em]">
               Verkoop je huis zonder makelaar
             </span>
 
-            <h1 className="font-sans text-4xl font-bold leading-tight md:text-6xl md:leading-[1.02]">
-              Bespaar gemiddeld
-              <br />
-              <span className="text-green-400">duizenden euro&apos;s</span> op
-              makelaarskosten.
+            <h1 className="font-sans text-[1.9rem] sm:text-[2.2rem] font-bold leading-[1.02] tracking-tight sm:text-5xl sm:leading-[0.98] md:text-6xl">
+              <span className="block">Bespaar gemiddeld</span>
+              <span className="block text-green-400">
+                duizenden euro&apos;s
+              </span>
+              <span className="block whitespace-nowrap">
+                op makelaarskosten.
+              </span>
             </h1>
 
             <p className="mt-6 max-w-xl text-base leading-relaxed text-stone-200 md:text-xl">
@@ -106,8 +109,7 @@ export default async function HomePage() {
                   Bepaal je prijs
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                  Jij bepaalt zelf de vraagprijs en houdt de regie over de
-                  verkoop.
+                  Jij bepaalt zelf de vraagprijs en houdt de regie over de verkoop.
                 </p>
               </div>
             </div>
