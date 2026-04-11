@@ -62,7 +62,16 @@ export default function HeroCalculator() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    if (window.location.hash === "#calculator") {
+    const params = new URLSearchParams(window.location.search);
+    const hasFlyerTracking =
+      params.get("utm_source") === "flyer" ||
+      params.get("utm_medium") === "offline" ||
+      params.get("utm_campaign") === "giessenburg";
+
+    const shouldOpenCalculator =
+      window.location.hash === "#calculator" || hasFlyerTracking;
+
+    if (shouldOpenCalculator) {
       setIsOpen(true);
 
       setTimeout(() => {
