@@ -19,6 +19,17 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function extractStoragePathFromPublicUrl(publicUrl: string | null | undefined) {
+  if (!publicUrl) return null;
+
+  const marker = '/storage/v1/object/public/listing-images/';
+  const index = publicUrl.indexOf(marker);
+
+  if (index === -1) return null;
+
+  return publicUrl.slice(index + marker.length);
+}
+
 async function generateUniqueSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
   baseInput: string,
@@ -109,7 +120,7 @@ export async function getListings(limit?: number, featuredOnly?: boolean) {
     .from('listings')
     .select(`
       *,
-      listing_images(id, public_url, is_cover, position)
+      listing_images(id, public_url, public_url_thumb, public_url_medium, public_url_large, is_cover, position)
     `)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
@@ -127,7 +138,11 @@ export async function getListings(limit?: number, featuredOnly?: boolean) {
 
     return {
       ...listing,
-      image: cover?.public_url || null,
+      image:
+        cover?.public_url_thumb ||
+        cover?.public_url_medium ||
+        cover?.public_url ||
+        null,
     };
   });
 
@@ -176,7 +191,7 @@ export async function getUserListings(userId: string) {
     .from('listings')
     .select(`
       *,
-      listing_images(id, public_url, is_cover)
+      listing_images(id, public_url, public_url_thumb, public_url_medium, public_url_large, is_cover, position)
     `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
@@ -190,7 +205,11 @@ export async function getUserListings(userId: string) {
 
     return {
       ...listing,
-      image: cover?.public_url || null,
+      image:
+        cover?.public_url_thumb ||
+        cover?.public_url_medium ||
+        cover?.public_url ||
+        null,
     };
   });
 
@@ -287,7 +306,8 @@ export async function createDraftListing(formData: FormData): Promise<void> {
     asking_price: askingPrice ? Number(askingPrice) : null,
     living_area: livingArea ? Number(livingArea) : null,
     plot_size: plotSize ? Number(plotSize) : null,
-    year_built: yearBuilt ? Number(yearBuilt) : null,    latitude: lat ? Number(lat) : null,
+    year_built: yearBuilt ? Number(yearBuilt) : null,
+    latitude: lat ? Number(lat) : null,
     longitude: lng ? Number(lng) : null,
 
     bag_address_id: bagAddressId || null,
@@ -395,6 +415,7 @@ export async function updateDraftListing(
       updates.slug = await generateUniqueSlug(supabase, title, id);
     }
   }
+
   const desc = formData.get('description');
   if (desc !== null) updates.description = String(desc).trim() || null;
 
@@ -739,14 +760,66 @@ export async function deleteListing(id: string): Promise<void> {
     throw new Error('Niet ingelogd.');
   }
 
-  const { error } = await supabase
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (listingError || !listing) {
+    throw new Error('Woning niet gevonden.');
+  }
+
+  const { data: images, error: imagesError } = await supabase
+    .from('listing_images')
+    .select('storage_path, public_url_thumb, public_url_medium, public_url_large')
+    .eq('listing_id', id);
+
+  if (imagesError) {
+    throw new Error(`Afbeeldingen ophalen mislukt: ${imagesError.message}`);
+  }
+
+  const pathsToDelete = Array.from(
+    new Set(
+      (images || [])
+        .flatMap((img: any) => [
+          img.storage_path || null,
+          extractStoragePathFromPublicUrl(img.public_url_thumb),
+          extractStoragePathFromPublicUrl(img.public_url_medium),
+          extractStoragePathFromPublicUrl(img.public_url_large),
+        ])
+        .filter(Boolean) as string[]
+    )
+  );
+
+  if (pathsToDelete.length > 0) {
+    const { error: storageDeleteError } = await supabase.storage
+      .from('listing-images')
+      .remove(pathsToDelete);
+
+    if (storageDeleteError) {
+      throw new Error(`Bestanden verwijderen mislukt: ${storageDeleteError.message}`);
+    }
+  }
+
+  const { error: deleteImagesError } = await supabase
+    .from('listing_images')
+    .delete()
+    .eq('listing_id', id);
+
+  if (deleteImagesError) {
+    throw new Error(`Afbeeldingen verwijderen mislukt: ${deleteImagesError.message}`);
+  }
+
+  const { error: deleteListingError } = await supabase
     .from('listings')
     .delete()
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) {
-    throw new Error(`Verwijderen mislukt: ${error.message}`);
+  if (deleteListingError) {
+    throw new Error(`Verwijderen mislukt: ${deleteListingError.message}`);
   }
 
   revalidatePath('/dashboard');

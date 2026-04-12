@@ -334,8 +334,8 @@ export default function ListingImageCarousel({
               src={safeImages[currentIndex]}
               alt={`${title} - foto ${currentIndex + 1}`}
               fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 900px"
+              priority={currentIndex === 0}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 900px"
               className={`object-cover object-center md:object-[center_40%] transition duration-300 pointer-events-none ${
                 isLoading ? "scale-105 blur-sm" : "scale-100 blur-0"
               }`}
@@ -406,10 +406,13 @@ export default function ListingImageCarousel({
                 }`}
               >
                 <div className="relative aspect-[4/3] w-full">
-                  <img
+                  <Image
                     src={image}
                     alt={`${title} thumbnail ${index + 1}`}
-                    className="absolute inset-0 h-full w-full object-cover object-center pointer-events-none"
+                    fill
+                    loading="lazy"
+                    sizes="200px"
+                    className="object-cover object-center pointer-events-none"
                   />
                 </div>
               </button>

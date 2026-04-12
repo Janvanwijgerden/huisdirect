@@ -1,6 +1,17 @@
 import { createClient } from "../../../lib/supabase/server";
 import { NextResponse } from "next/server";
 
+function extractStoragePathFromPublicUrl(publicUrl: string | null | undefined) {
+  if (!publicUrl) return null;
+
+  const marker = "/storage/v1/object/public/listing-images/";
+  const index = publicUrl.indexOf(marker);
+
+  if (index === -1) return null;
+
+  return publicUrl.slice(index + marker.length);
+}
+
 export async function POST(req: Request) {
   try {
     const { id, listingId } = await req.json();
@@ -35,7 +46,9 @@ export async function POST(req: Request) {
 
     const { data: image, error: imageError } = await supabase
       .from("listing_images")
-      .select("id, storage_path, is_cover")
+      .select(
+        "id, storage_path, public_url_thumb, public_url_medium, public_url_large, is_cover"
+      )
       .eq("id", id)
       .eq("listing_id", listingId)
       .single();
@@ -44,8 +57,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Afbeelding niet gevonden." }, { status: 404 });
     }
 
-    if (image.storage_path) {
-      await supabase.storage.from("listing-images").remove([image.storage_path]);
+    const pathsToDelete = Array.from(
+      new Set(
+        [
+          image.storage_path || null,
+          extractStoragePathFromPublicUrl(image.public_url_thumb),
+          extractStoragePathFromPublicUrl(image.public_url_medium),
+          extractStoragePathFromPublicUrl(image.public_url_large),
+        ].filter(Boolean) as string[]
+      )
+    );
+
+    if (pathsToDelete.length > 0) {
+      const { error: storageDeleteError } = await supabase.storage
+        .from("listing-images")
+        .remove(pathsToDelete);
+
+      if (storageDeleteError) {
+        return NextResponse.json(
+          { error: `Bestanden verwijderen mislukt: ${storageDeleteError.message}` },
+          { status: 500 }
+        );
+      }
     }
 
     const { error: deleteError } = await supabase

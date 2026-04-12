@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { BedDouble, Ruler, MapPin, ArrowUpRight } from 'lucide-react';
 import type { Listing } from '../../types/database';
 import { formatPrice, formatArea, formatAddressLine } from '../../lib/listing-format';
@@ -11,7 +12,7 @@ type Props = {
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1400&q=80';
 
-export default function ListingCard({ listing }: Props) {
+export default function ListingCard({ listing, index = 0 }: Props) {
   const coverImage =
     listing.listing_images?.find((img: any) => img.is_cover)?.public_url ||
     listing.listing_images?.[0]?.public_url ||
@@ -23,10 +24,14 @@ export default function ListingCard({ listing }: Props) {
       className="group block overflow-hidden rounded-[28px] border border-stone-200/80 bg-white shadow-[0_10px_30px_rgba(28,25,23,0.06)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(28,25,23,0.12)]"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
-        <img
+        <Image
           src={coverImage}
           alt={listing.title || 'Woning'}
-          className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+          fill
+          priority={index < 2}
+          loading={index < 2 ? "eager" : "lazy"}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 420px"
+          className="object-cover transition duration-700 group-hover:scale-[1.04]"
         />
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />

@@ -1,14 +1,123 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import imageCompression from "browser-image-compression";
 import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2, Upload } from "lucide-react";
+import { createClient } from "../../lib/supabase/client";
 
 type ListingImage = {
   id: string;
   public_url: string;
+  public_url_thumb?: string | null;
+  public_url_medium?: string | null;
+  public_url_large?: string | null;
   is_cover: boolean;
   position: number | null;
 };
+
+const MAX_FILES_PER_UPLOAD = 40;
+const MAX_TOTAL_FILES = 80;
+const MAX_FILE_SIZE_MB = 10;
+const MAX_PARALLEL_UPLOADS = 3;
+
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9.\-_]/g, "-");
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>
+) {
+  let nextIndex = 0;
+
+  async function runner() {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      await worker(items[current], current);
+    }
+  }
+
+  const runners = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => runner()
+  );
+
+  await Promise.all(runners);
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Bestand lezen mislukt."));
+      }
+    };
+
+    reader.onerror = () => reject(new Error("Bestand lezen mislukt."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadImageElement(dataUrl: string): Promise<HTMLImageElement> {
+  return await new Promise((resolve, reject) => {
+    const img = new window.Image();
+
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Afbeelding laden mislukt."));
+    img.src = dataUrl;
+  });
+}
+
+async function createResizedWebPBlob(
+  file: File,
+  maxWidth: number,
+  quality: number
+): Promise<Blob> {
+  const dataUrl = await fileToDataUrl(file);
+  const img = await loadImageElement(dataUrl);
+
+  const originalWidth = img.naturalWidth || img.width;
+  const originalHeight = img.naturalHeight || img.height;
+
+  if (!originalWidth || !originalHeight) {
+    throw new Error("Afbeeldingsafmetingen konden niet worden bepaald.");
+  }
+
+  const targetWidth = Math.min(maxWidth, originalWidth);
+  const scale = targetWidth / originalWidth;
+  const targetHeight = Math.round(originalHeight * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas context kon niet worden aangemaakt.");
+  }
+
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(
+      (createdBlob) => resolve(createdBlob),
+      "image/webp",
+      quality
+    );
+  });
+
+  if (!blob) {
+    throw new Error("Afbeelding omzetten naar WebP mislukt.");
+  }
+
+  return blob;
+}
 
 export default function ImageManager({ listingId }: { listingId: string }) {
   const [images, setImages] = useState<ListingImage[]>([]);
@@ -16,6 +125,7 @@ export default function ImageManager({ listingId }: { listingId: string }) {
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bottomInputRef = useRef<HTMLInputElement | null>(null);
+  const supabase = createClient();
 
   async function loadImages() {
     try {
@@ -41,32 +151,205 @@ export default function ImageManager({ listingId }: { listingId: string }) {
   }, [listingId]);
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+    const fileList = event.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const files = Array.from(fileList);
 
     try {
       setLoading(true);
       setError("");
 
-      const formData = new FormData();
-      formData.append("listingId", listingId);
-
-      for (let i = 0; i < files.length; i += 1) {
-        formData.append("files", files[i]);
+      if (files.length > MAX_FILES_PER_UPLOAD) {
+        throw new Error(
+          `Je kunt maximaal ${MAX_FILES_PER_UPLOAD} foto’s tegelijk uploaden.`
+        );
       }
 
-      const res = await fetch("/api/upload-images", {
-        method: "POST",
-        body: formData,
+      if (images.length + files.length > MAX_TOTAL_FILES) {
+        throw new Error(
+          `Je kunt maximaal ${MAX_TOTAL_FILES} foto’s per woning opslaan. Je hebt nu ${images.length} foto’s en probeert er ${files.length} toe te voegen.`
+        );
+      }
+
+      const oversizedFiles = files.filter(
+        (file) => file.size / 1024 / 1024 > MAX_FILE_SIZE_MB
+      );
+
+      if (oversizedFiles.length > 0) {
+        const names = oversizedFiles
+          .slice(0, 3)
+          .map((file) => file.name)
+          .join(", ");
+
+        throw new Error(
+          `Deze bestand(en) zijn groter dan ${MAX_FILE_SIZE_MB}MB: ${names}${
+            oversizedFiles.length > 3 ? "..." : ""
+          }`
+        );
+      }
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("Niet ingelogd.");
+      }
+
+      const existingCount = images.length;
+      const hadCoverBeforeUpload = images.some((img) => img.is_cover);
+      const insertedRows: ListingImage[] = [];
+      const uploadErrors: string[] = [];
+
+      await runWithConcurrency(files, MAX_PARALLEL_UPLOADS, async (file, index) => {
+        let thumbPath = "";
+        let mediumPath = "";
+        let largePath = "";
+
+        try {
+          const compressedLargeFile = await imageCompression(file, {
+            maxSizeMB: 1.2,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+            initialQuality: 0.82,
+            fileType: "image/webp",
+          });
+
+          const thumbBlob = await createResizedWebPBlob(file, 480, 0.72);
+          const mediumBlob = await createResizedWebPBlob(file, 1280, 0.8);
+          const largeBlob = compressedLargeFile;
+
+          const safeBaseName = sanitizeFileName(file.name.replace(/\.[^.]+$/, ""));
+          const uniqueBase = `${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}-${safeBaseName}`;
+
+          thumbPath = `${user.id}/${listingId}/thumb/${uniqueBase}.webp`;
+          mediumPath = `${user.id}/${listingId}/medium/${uniqueBase}.webp`;
+          largePath = `${user.id}/${listingId}/large/${uniqueBase}.webp`;
+
+          const [
+            { error: thumbUploadError },
+            { error: mediumUploadError },
+            { error: largeUploadError },
+          ] = await Promise.all([
+            supabase.storage.from("listing-images").upload(thumbPath, thumbBlob, {
+              contentType: "image/webp",
+              upsert: false,
+            }),
+            supabase.storage.from("listing-images").upload(mediumPath, mediumBlob, {
+              contentType: "image/webp",
+              upsert: false,
+            }),
+            supabase.storage.from("listing-images").upload(largePath, largeBlob, {
+              contentType: "image/webp",
+              upsert: false,
+            }),
+          ]);
+
+          if (thumbUploadError) {
+            throw new Error(`Thumb uploaden mislukt: ${thumbUploadError.message}`);
+          }
+
+          if (mediumUploadError) {
+            throw new Error(`Medium uploaden mislukt: ${mediumUploadError.message}`);
+          }
+
+          if (largeUploadError) {
+            throw new Error(`Large uploaden mislukt: ${largeUploadError.message}`);
+          }
+
+          const { data: thumbPublicData } = supabase.storage
+            .from("listing-images")
+            .getPublicUrl(thumbPath);
+
+          const { data: mediumPublicData } = supabase.storage
+            .from("listing-images")
+            .getPublicUrl(mediumPath);
+
+          const { data: largePublicData } = supabase.storage
+            .from("listing-images")
+            .getPublicUrl(largePath);
+
+          const insertPayload = {
+            listing_id: listingId,
+            storage_path: largePath,
+            public_url: mediumPublicData.publicUrl,
+            public_url_thumb: thumbPublicData.publicUrl,
+            public_url_medium: mediumPublicData.publicUrl,
+            public_url_large: largePublicData.publicUrl,
+            is_cover: false,
+            position: existingCount + index,
+          };
+
+          const { data: insertedRow, error: insertError } = await (supabase as any)
+            .from("listing_images")
+            .insert(insertPayload)
+            .select()
+            .single();
+
+          if (insertError) {
+            await supabase.storage.from("listing-images").remove([
+              thumbPath,
+              mediumPath,
+              largePath,
+            ]);
+            throw new Error(`Opslaan afbeelding mislukt: ${insertError.message}`);
+          }
+
+          insertedRows.push(insertedRow as ListingImage);
+        } catch (fileError: any) {
+          if (thumbPath || mediumPath || largePath) {
+            const pathsToRemove = [thumbPath, mediumPath, largePath].filter(Boolean);
+            if (pathsToRemove.length > 0) {
+              await supabase.storage.from("listing-images").remove(pathsToRemove);
+            }
+          }
+
+          uploadErrors.push(
+            `${file.name}: ${fileError?.message || "Onbekende fout"}`
+          );
+        }
       });
 
-      const json = await res.json();
+      await loadImages();
 
-      if (!res.ok) {
-        throw new Error(json?.error || "Uploaden mislukt.");
+      if (!hadCoverBeforeUpload && insertedRows.length > 0) {
+        const firstInserted = insertedRows.sort((a, b) => {
+          const aPos = typeof a.position === "number" ? a.position : 0;
+          const bPos = typeof b.position === "number" ? b.position : 0;
+          return aPos - bPos;
+        })[0];
+
+        const res = await fetch("/api/set-cover", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: firstInserted.id,
+            listingId,
+          }),
+        });
+
+        if (!res.ok) {
+          const json = await res.json().catch(() => null);
+          throw new Error(json?.error || "Hoofdfoto instellen mislukt na upload.");
+        }
+
+        await loadImages();
       }
 
-      await loadImages();
+      if (uploadErrors.length > 0) {
+        const preview = uploadErrors.slice(0, 3).join(" | ");
+        throw new Error(
+          `Niet alle foto’s zijn geüpload. ${preview}${
+            uploadErrors.length > 3 ? " ..." : ""
+          }`
+        );
+      }
 
       if (inputRef.current) {
         inputRef.current.value = "";
@@ -79,6 +362,9 @@ export default function ImageManager({ listingId }: { listingId: string }) {
       setError(err?.message || "Uploaden mislukt.");
     } finally {
       setLoading(false);
+      if (event.target) {
+        event.target.value = "";
+      }
     }
   }
 

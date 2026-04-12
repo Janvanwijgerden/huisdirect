@@ -19,9 +19,9 @@ export default function ListingGrid({ listings, emptyMessage }: Props) {
   return (
     <div className="mx-auto max-w-5xl px-4">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {listings.map((listing) => (
+        {listings.map((listing, index) => (
           <div key={listing.id} className="mx-auto w-full max-w-[420px]">
-            <ListingCard listing={listing} />
+            <ListingCard listing={listing} index={index} />
           </div>
         ))}
       </div>
