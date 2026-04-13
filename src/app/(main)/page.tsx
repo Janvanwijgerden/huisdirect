@@ -9,7 +9,7 @@ import {
   Megaphone,
   Users,
 } from "lucide-react";
-import { getListings } from "../../lib/actions/listings";
+import { getListings, getSoldListings } from "../../lib/actions/listings";
 import ListingGrid from "../../components/listings/ListingGrid";
 import HeroCalculator from "../../components/home/HeroCalculator";
 
@@ -33,7 +33,8 @@ const FEATURES = [
 
 export default async function HomePage() {
   const featuredListings = await getListings(6, true);
-  const recentListings = await getListings(6);
+  const activeRecentListings = await getListings(12);
+  const soldRecentListings = await getSoldListings(100);
 
   return (
     <div className="bg-white">
@@ -56,7 +57,7 @@ export default async function HomePage() {
               Verkoop je huis zonder makelaar
             </span>
 
-            <h1 className="font-sans text-[1.9rem] sm:text-[2.2rem] font-bold leading-[1.02] tracking-tight sm:text-5xl sm:leading-[0.98] md:text-6xl">
+            <h1 className="font-sans text-[1.9rem] font-bold leading-[1.02] tracking-tight sm:text-[2.2rem] sm:text-5xl sm:leading-[0.98] md:text-6xl">
               <span className="block">Bespaar gemiddeld</span>
               <span className="block text-green-400">
                 duizenden euro&apos;s
@@ -200,10 +201,41 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <ListingGrid
-            listings={recentListings}
-            emptyMessage="Nog geen woningen geplaatst — zet als eerste jouw woning online."
-          />
+          <ListingGrid listings={activeRecentListings} />
+
+          {soldRecentListings.length > 0 && (
+            <div className="mt-16">
+              <div className="mb-8 flex items-end justify-between">
+                <div>
+                  <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-stone-500">
+                    Verkocht
+                  </p>
+                  <h2 className="font-sans text-3xl font-bold text-stone-900 md:text-4xl">
+                    Recent verkocht
+                  </h2>
+                </div>
+
+                <Link
+                  href="/verkocht"
+                  className="hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-200/60 hover:text-stone-900 md:inline-flex"
+                >
+                  Bekijk verkocht
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+
+              <ListingGrid listings={soldRecentListings} />
+
+              <div className="mt-8 flex md:hidden">
+                <Link
+                  href="/verkocht"
+                  className="inline-flex w-full items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-900 transition hover:bg-stone-100"
+                >
+                  Bekijk verkocht
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div className="mt-8 flex md:hidden">
             <Link

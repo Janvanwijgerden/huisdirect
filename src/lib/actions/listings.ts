@@ -149,6 +149,40 @@ export async function getListings(limit?: number, featuredOnly?: boolean) {
   return mapped;
 }
 
+export async function getSoldListings(limit: number = 100) {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from('listings')
+    .select(`
+      *,
+      listing_images(id, public_url, public_url_thumb, public_url_medium, public_url_large, is_cover, position)
+    `)
+    .eq('status', 'sold')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const mapped = (data ?? []).map((listing: any) => {
+    const cover =
+      listing.listing_images?.find((img: any) => img.is_cover) ||
+      listing.listing_images?.[0];
+
+    return {
+      ...listing,
+      image:
+        cover?.public_url_thumb ||
+        cover?.public_url_medium ||
+        cover?.public_url ||
+        null,
+    };
+  });
+
+  return mapped;
+}
+
 export async function getListing(id: string) {
   const supabase = await createClient();
 
@@ -721,6 +755,35 @@ export async function attemptPublishListing(id: string): Promise<void> {
   redirect(`/listings/${id}`);
 }
 
+export async function markListingAsSold(id: string): Promise<void> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Niet ingelogd.');
+
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      status: 'sold',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) {
+    throw new Error(`Markeren als verkocht mislukt: ${error.message}`);
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/listings');
+  revalidatePath(`/listings/${id}`);
+  revalidatePath('/listings');
+  revalidatePath('/');
+}
+
 export async function unpublishListing(id: string): Promise<void> {
   const supabase = await createClient();
 
@@ -747,6 +810,7 @@ export async function unpublishListing(id: string): Promise<void> {
   revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${id}`);
   revalidatePath('/listings');
+  revalidatePath('/');
 }
 
 export async function deleteListing(id: string): Promise<void> {

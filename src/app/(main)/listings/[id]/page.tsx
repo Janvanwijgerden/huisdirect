@@ -269,7 +269,10 @@ export default async function ListingDetailPage({
     notFound();
   }
 
-  if (listing.status !== "active" && listing.user_id !== user?.id) {
+  const isOwner = listing.user_id === user?.id;
+  const isPublicVisible = listing.status === "active" || listing.status === "sold";
+
+  if (!isPublicVisible && !isOwner) {
     notFound();
   }
 
@@ -308,6 +311,7 @@ export default async function ListingDetailPage({
             <ListingImageCarousel
               images={galleryImages}
               title={listing.title || "Woning"}
+              status={listing.status}
             />
 
             <ListingHighlights
@@ -338,10 +342,12 @@ export default async function ListingDetailPage({
               )}
             </section>
 
-            <ListingLeadForm
-              listingId={listing.id}
-              listingTitle={listing.title || ""}
-            />
+            {listing.status !== "sold" && (
+              <ListingLeadForm
+                listingId={listing.id}
+                listingTitle={listing.title || ""}
+              />
+            )}
           </div>
 
           <div className="min-w-0">
@@ -352,6 +358,7 @@ export default async function ListingDetailPage({
               plotArea={listing.plot_size || undefined}
               yearBuilt={listing.year_built || undefined}
               energyLabel={listing.energy_label || undefined}
+              status={listing.status}
             />
           </div>
         </div>

@@ -29,22 +29,37 @@ export default function ListingCard({ listing, index = 0 }: Props) {
           alt={listing.title || 'Woning'}
           fill
           priority={index < 2}
-          loading={index < 2 ? "eager" : "lazy"}
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 420px"
+          loading={index < 2 ? 'eager' : 'lazy'}
+          sizes="(max-width: 768px) 100vw, 320px"
           className="object-cover transition duration-700 group-hover:scale-[1.04]"
         />
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
+        {listing.status === 'sold' && (
+          <div className="pointer-events-none absolute left-0 top-0 z-20 h-24 w-24 sm:h-[108px] sm:w-[108px]">
+            <div
+              className="absolute inset-0"
+              style={{
+                clipPath: 'polygon(0 0, 100% 0, 0 100%)',
+                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                boxShadow: '0 6px 12px rgba(0,0,0,0.15)',
+              }}
+            />
 
-        {listing.status === 'sold' ? (
-          <div className="absolute left-4 top-4 rounded-full bg-stone-950/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-sm backdrop-blur-md">
-            Verkocht
+           <div className="absolute left-[1px] top-[30px] rotate-[-45deg] sm:left-[3px] sm:top-[36px]">
+              <span className="block text-[13px] font-extrabold uppercase tracking-[0.02em] text-white sm:text-[15px]">
+                Verkocht
+              </span>
+            </div>
           </div>
-        ) : listing.is_featured ? (
+        )}
+
+        {listing.status !== 'sold' && listing.is_featured && (
           <div className="absolute left-4 top-4 rounded-full bg-emerald-600/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-sm backdrop-blur-md">
             Uitgelicht
           </div>
-        ) : null}
+        )}
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
 
         <div className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-stone-900 shadow-sm transition duration-300 group-hover:scale-105 group-hover:bg-white">
           <ArrowUpRight className="h-4 w-4" />
@@ -59,11 +74,11 @@ export default function ListingCard({ listing, index = 0 }: Props) {
             </p>
           )}
 
-          <h3 className="font-sans text-[32px] font-bold tracking-tight text-stone-950">
+          <h3 className="font-sans text-[28px] font-bold tracking-tight text-stone-950">
             {listing.asking_price ? formatPrice(listing.asking_price) : 'Prijs op aanvraag'}
           </h3>
 
-          <h4 className="font-sans text-xl font-semibold leading-tight text-stone-900">
+          <h4 className="font-sans text-lg font-semibold leading-tight text-stone-900">
             {listing.title || 'Concept Woning'}
           </h4>
 

@@ -1,6 +1,10 @@
 "use client";
 
-import { deleteListing, unpublishListing } from "../../lib/actions/listings";
+import {
+  deleteListing,
+  markListingAsSold,
+  unpublishListing,
+} from "../../lib/actions/listings";
 
 type ListingManagementActionsProps = {
   listingId: string;
@@ -14,25 +18,47 @@ export default function ListingManagementActions({
   return (
     <div className="mt-3 grid grid-cols-1 gap-3">
       {isLive && (
-        <form
-          action={unpublishListing.bind(null, listingId)}
-          onSubmit={(event) => {
-            const confirmed = window.confirm(
-              "Weet u zeker dat u deze woning offline wilt halen?"
-            );
+        <>
+          <form
+            action={markListingAsSold.bind(null, listingId)}
+            onSubmit={(event) => {
+              const confirmed = window.confirm(
+                "Weet u zeker dat u deze woning als verkocht wilt markeren?"
+              );
 
-            if (!confirmed) {
-              event.preventDefault();
-            }
-          }}
-        >
-          <button
-            type="submit"
-            className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+              if (!confirmed) {
+                event.preventDefault();
+              }
+            }}
           >
-            Woning offline halen
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            >
+              Markeer als verkocht
+            </button>
+          </form>
+
+          <form
+            action={unpublishListing.bind(null, listingId)}
+            onSubmit={(event) => {
+              const confirmed = window.confirm(
+                "Weet u zeker dat u deze woning offline wilt halen?"
+              );
+
+              if (!confirmed) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <button
+              type="submit"
+              className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+            >
+              Woning offline halen
+            </button>
+          </form>
+        </>
       )}
 
       <form

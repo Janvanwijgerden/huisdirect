@@ -17,6 +17,7 @@ type Props = {
   energyLabel?: string;
   phone?: string;
   email?: string;
+  status?: string;
 };
 
 function formatPrice(price?: number | string) {
@@ -44,20 +45,34 @@ export default function ListingSidebarCard({
   energyLabel,
   phone = "+31600000000",
   email = "info@huisdirect.nl",
+  status,
 }: Props) {
+  const isSold = status === "sold";
+
   return (
     <aside className="self-start lg:sticky lg:top-24">
       <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
         <div className="border-b border-stone-200 bg-gradient-to-b from-emerald-50 to-white p-6">
-          <p className="text-sm font-medium text-stone-500">Vraagprijs</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-stone-900">
-            {formatPrice(price)}
+          <p className="text-sm font-medium text-stone-500">
+            {isSold ? "Status" : "Vraagprijs"}
           </p>
 
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
-            <ShieldCheck className="h-4 w-4" />
-            Direct contact mogelijk
-          </div>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-stone-900">
+            {isSold ? "Verkocht" : formatPrice(price)}
+          </p>
+
+          {!isSold && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
+              <ShieldCheck className="h-4 w-4" />
+              Direct contact mogelijk
+            </div>
+          )}
+
+          {isSold && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
+              Verkocht
+            </div>
+          )}
         </div>
 
         <div className="p-6">
@@ -113,39 +128,55 @@ export default function ListingSidebarCard({
             </div>
           </div>
 
-          <div className="mt-6 space-y-3">
-            <a
-              href="#contact-section"
-              className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
-            >
-              Plan bezichtiging
-            </a>
+          {!isSold && (
+            <div className="mt-6 space-y-3">
+              <a
+                href="#contact-section"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+              >
+                Plan bezichtiging
+              </a>
 
-            <a
-              href={`tel:${phone}`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
-            >
-              <Phone className="h-4 w-4" />
-              Neem contact op
-            </a>
+              <a
+                href={`tel:${phone}`}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+              >
+                <Phone className="h-4 w-4" />
+                Neem contact op
+              </a>
 
-            <a
-              href={`mailto:${email}`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
-            >
-              <Mail className="h-4 w-4" />
-              Stuur een e-mail
-            </a>
-          </div>
+              <a
+                href={`mailto:${email}`}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50"
+              >
+                <Mail className="h-4 w-4" />
+                Stuur een e-mail
+              </a>
+            </div>
+          )}
 
           <div className="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-4">
-            <p className="text-sm font-semibold text-stone-900">
-              Snel schakelen via HuisDirect
-            </p>
-            <p className="mt-1 text-sm leading-6 text-stone-600">
-              Geïnteresseerd in deze woning? Vraag eenvoudig meer informatie aan
-              of plan direct een bezichtiging.
-            </p>
+            {!isSold ? (
+              <>
+                <p className="text-sm font-semibold text-stone-900">
+                  Snel schakelen via HuisDirect
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-600">
+                  Geïnteresseerd in deze woning? Vraag eenvoudig meer informatie aan
+                  of plan direct een bezichtiging.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-stone-900">
+                  Deze woning is verkocht
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-600">
+                  Deze woning is niet meer beschikbaar. Contact aanvragen en
+                  bezichtigingen zijn daarom uitgeschakeld.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

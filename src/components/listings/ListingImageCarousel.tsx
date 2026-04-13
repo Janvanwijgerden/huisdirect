@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 type ListingImageCarouselProps = {
   images: string[];
   title: string;
+  status?: string;
 };
 
 type Point = {
@@ -29,6 +30,7 @@ type Rect = {
 export default function ListingImageCarousel({
   images,
   title,
+  status,
 }: ListingImageCarouselProps) {
   const safeImages =
     images && images.length > 0
@@ -56,6 +58,8 @@ export default function ListingImageCarousel({
 
   const zoomRef = useRef(1);
   const panRef = useRef<Point>({ x: 0, y: 0 });
+
+  const isSold = status === "sold";
 
   const applyTransform = () => {
     const node = transformRef.current;
@@ -342,6 +346,24 @@ export default function ListingImageCarousel({
               onLoad={() => setIsLoading(false)}
             />
 
+            {isSold && (
+              <div className="pointer-events-none absolute left-0 top-0 z-20 h-24 w-24 sm:h-[108px] sm:w-[108px]">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    clipPath: "polygon(0 0, 100% 0, 0 100%)",
+                    background: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
+                    boxShadow: "0 6px 12px rgba(0,0,0,0.15)",
+                  }}
+                />
+                <div className="absolute left-[1px] top-[30px] rotate-[-45deg] sm:left-[3px] sm:top-[36px]">
+                  <span className="block text-[13px] font-extrabold uppercase tracking-[0.02em] text-white sm:text-[15px]">
+                    Verkocht
+                  </span>
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={(event) => {
@@ -414,6 +436,24 @@ export default function ListingImageCarousel({
                     sizes="200px"
                     className="object-cover object-center pointer-events-none"
                   />
+
+                  {isSold && (
+                    <div className="pointer-events-none absolute left-0 top-0 z-20 h-12 w-12 sm:h-14 sm:w-14">
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          clipPath: "polygon(0 0, 100% 0, 0 100%)",
+                          background:
+                            "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
+                        }}
+                      />
+                      <div className="absolute left-[-1px] top-[13px] rotate-[-45deg] sm:left-[0px] sm:top-[16px]">
+                        <span className="block text-[8px] font-extrabold uppercase tracking-[0.01em] text-white sm:text-[9px]">
+                          Verkocht
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </button>
             ))}
@@ -423,6 +463,24 @@ export default function ListingImageCarousel({
 
       {isOpen && (
         <div className="fixed inset-0 z-[100] bg-black/95">
+          {isSold && (
+            <div className="pointer-events-none absolute left-0 top-0 z-[130] h-28 w-28 sm:h-32 sm:w-32">
+              <div
+                className="absolute inset-0"
+                style={{
+                  clipPath: "polygon(0 0, 100% 0, 0 100%)",
+                  background: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
+                  boxShadow: "0 6px 12px rgba(0,0,0,0.2)",
+                }}
+              />
+              <div className="absolute left-[4px] top-[34px] rotate-[-45deg] sm:left-[8px] sm:top-[42px]">
+                <span className="block text-base font-extrabold uppercase tracking-[0.02em] text-white sm:text-lg">
+                  Verkocht
+                </span>
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={closeLightbox}
