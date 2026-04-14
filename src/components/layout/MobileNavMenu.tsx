@@ -13,6 +13,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import TrackButton from "../TrackButton";
 
 type MobileNavMenuProps = {
   isLoggedIn: boolean;
@@ -45,7 +46,7 @@ export default function MobileNavMenu({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+12px)] w-[min(92vw,360px)] overflow-hidden rounded-3xl border border-slate-200 bg-white p-3 shadow-[0_20px_60px_rgba(15,23,42,0.16)]">
+        <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[min(92vw,360px)] overflow-hidden rounded-3xl border border-slate-200 bg-white p-3 shadow-[0_20px_60px_rgba(15,23,42,0.16)]">
           <div className="mb-2 px-2 pt-1">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               Algemeen
@@ -146,13 +147,15 @@ export default function MobileNavMenu({
                   Help
                 </Link>
 
-                <Link
+                <TrackButton
                   href="/listings/new"
-                  onClick={closeMenu}
                   className="mt-3 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+                  eventName="Lead"
+                  eventData={{ source: "mobile_menu_logged_in" }}
+                  onTrackedClick={closeMenu}
                 >
                   Plaats woning
-                </Link>
+                </TrackButton>
 
                 <form action="/auth/logout" className="mt-2">
                   <button
@@ -175,13 +178,15 @@ export default function MobileNavMenu({
                   Inloggen
                 </Link>
 
-                <Link
+                <TrackButton
                   href="/auth/register"
-                  onClick={closeMenu}
                   className="mt-2 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+                  eventName="Lead"
+                  eventData={{ source: "mobile_menu_logged_out" }}
+                  onTrackedClick={closeMenu}
                 >
                   Plaats woning
-                </Link>
+                </TrackButton>
               </>
             )}
           </div>

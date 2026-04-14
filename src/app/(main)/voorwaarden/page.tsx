@@ -328,10 +328,10 @@ export default function VoorwaardenPage() {
             <p className="mt-4 text-slate-600 leading-8">
               Vragen over deze algemene voorwaarden kun je sturen naar{" "}
               <a
-                href="mailto:huisdirect@outlook.com"
+                href="mailto:info@huisdirect.com"
                 className="font-medium text-emerald-600"
               >
-                huisdirect@outlook.com
+                info@huisdirect.com
               </a>
               .
             </p>

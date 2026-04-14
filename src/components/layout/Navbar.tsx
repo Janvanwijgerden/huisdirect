@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "../../lib/supabase/server";
 import { signOut } from "../../lib/actions/auth";
 import MobileNavMenu from "./MobileNavMenu";
+import TrackButton from "../TrackButton";
 
 const navLinks = [
   { href: "/listings", label: "Aanbod" },
@@ -57,7 +58,11 @@ export default async function Navbar() {
         <nav className="hidden min-w-0 flex-1 items-center justify-end gap-2 2xl:flex">
           <div className="flex min-w-0 items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1">
             {navLinks.map((link) => (
-              <Link key={link.href} href={link.href} className={navItemClasses()}>
+              <Link
+                key={link.href}
+                href={link.href}
+                className={navItemClasses()}
+              >
                 {link.label}
               </Link>
             ))}
@@ -81,12 +86,14 @@ export default async function Navbar() {
                 </button>
               </form>
 
-              <Link
+              <TrackButton
                 href="/listings/new"
                 className="ml-1 inline-flex h-12 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+                eventName="Lead"
+                eventData={{ source: "navbar_desktop_logged_in" }}
               >
                 Plaats woning
-              </Link>
+              </TrackButton>
             </>
           ) : (
             <>
@@ -94,23 +101,27 @@ export default async function Navbar() {
                 Inloggen
               </Link>
 
-              <Link
+              <TrackButton
                 href="/auth/register"
                 className="ml-1 inline-flex h-12 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+                eventName="Lead"
+                eventData={{ source: "navbar_desktop_logged_out" }}
               >
                 Plaats woning
-              </Link>
+              </TrackButton>
             </>
           )}
         </nav>
 
         <div className="hidden sm:block 2xl:hidden">
-          <Link
+          <TrackButton
             href="/listings/new"
             className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+            eventName="Lead"
+            eventData={{ source: "navbar_compact" }}
           >
             Plaats woning
-          </Link>
+          </TrackButton>
         </div>
 
         <div className="2xl:hidden">

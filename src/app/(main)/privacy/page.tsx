@@ -160,10 +160,10 @@ export default function PrivacyPage() {
             <p className="mt-4 text-slate-600 leading-8">
               Je kunt hiervoor contact opnemen via{" "}
               <a
-                href="mailto:huisdirect@outlook.com"
+                href="mailto:info@huisdirect.com"
                 className="font-medium text-emerald-600"
               >
-                huisdirect@outlook.com
+                info@huisdirect.com
               </a>
               .
             </p>
