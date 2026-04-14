@@ -551,63 +551,66 @@ const handleGenerateDescription = async () => {
     setIsGeneratingDescription(false);
   }
 };
-  const handleSaveDraft = async (formData: FormData) => {if (isSavingRef.current) return;
-isSavingRef.current = true;
+const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  const formElement = event.currentTarget;
+  const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+  const isPublish = submitter?.value === "publish";
+
+  const formData = new FormData(formElement);
+
+  if (isPublish) {
+    if (!listing.has_paid) {
+      setShowPaymentModal(true);
+      return;
+    }
+    
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+
+    startTransition(async () => {
+      setPublishError(null);
+      setSaveStatus("saving");
+
+      try {
+        const res = await updateDraftListing(listing.id, null, formData);
+        if (res && res.error) {
+          setSaveStatus("error");
+          setPublishError(`Opslaan vóór publicatie mislukt: ${res.error}`);
+          return;
+        }
+        setSaveStatus("saved");
+        try {
+          await publishAction();
+        } catch (err: any) {
+          setPublishError(err.message);
+        }
+      } finally {
+        isSavingRef.current = false;
+      }
+    });
+  } else {
+    // Save draft
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+
     startTransition(async () => {
       setSaveStatus("saving");
       setPublishError(null);
-try {
-  const res = await updateDraftListing(listing.id, null, formData);
-
-  if (res && res.error) {
-    setSaveStatus("error");
-    setPublishError(res.error);
-  } else {
-    setSaveStatus("saved");
-    setTimeout(() => setSaveStatus("idle"), 3000);
-  }
-} finally {
-  isSavingRef.current = false;
-}    });
-  };
-
-const handleSaveAndPublish = async () => {
-  if (!listing.has_paid) {
-    setShowPaymentModal(true);
-    return;
-  }
-
-  const formElement = formRef.current;
-  if (!formElement) return;
-  if (isSavingRef.current) return;
-
-  isSavingRef.current = true;
-
-  startTransition(async () => {
-    setPublishError(null);
-    setSaveStatus("saving");
-
-    try {
-      const formData = new FormData(formElement);
-      const res = await updateDraftListing(listing.id, null, formData);
-
-      if (res && res.error) {
-        setSaveStatus("error");
-        setPublishError(`Opslaan vóór publicatie mislukt: ${res.error}`);
-        return;
-      }
-
-      setSaveStatus("saved");
-
       try {
-        await publishAction();
-      } catch (err: any) {
-        setPublishError(err.message);
+        const res = await updateDraftListing(listing.id, null, formData);
+        if (res && res.error) {
+          setSaveStatus("error");
+          setPublishError(res.error);
+        } else {
+          setSaveStatus("saved");
+          setTimeout(() => setSaveStatus("idle"), 3000);
+        }
+      } finally {
+        isSavingRef.current = false;
       }
-    } finally {
-      isSavingRef.current = false;
-    }
-  });
+    });
+  }
 };
 const inputClass =
     "w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100";
@@ -628,7 +631,7 @@ const inputClass =
         </div>
       )}
 
-<form ref={formRef} action={handleSaveDraft} id="draft-form" className="space-y-6">
+<form ref={formRef} onSubmit={handleSubmit} id="draft-form" className="space-y-6">
   {children}
   <input
     type="hidden"
@@ -1245,9 +1248,10 @@ const inputClass =
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <button
-              type="button"
+              type="submit"
+              name="action"
+              value="save"
               disabled={isPending || saveStatus === "saving"}
-              onClick={() => formRef.current?.requestSubmit()}
               className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-5 py-3.5 text-sm font-semibold transition disabled:opacity-50 ${
                 saveStatus === "saved"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -1275,9 +1279,10 @@ const inputClass =
             </button>
 
             <button
-              type="button"
+              type="submit"
+              name="action"
+              value="publish"
               disabled={isPending || saveStatus === "saving"}
-              onClick={handleSaveAndPublish}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
             >
               {isPending ? (

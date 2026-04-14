@@ -63,14 +63,18 @@ export default function TrackButton({
       navigate();
     };
 
-    // Track the event
-    trackEvent(eventName, eventData);
+    // Track the event. Returns true if FBQ fired or was already fired safely.
+    const isTracked = trackEvent(eventName, eventData);
 
     if (onTrackedClick) {
       onTrackedClick();
     }
 
-    window.setTimeout(safeNavigate, delayMs);
+    if (isTracked) {
+      window.setTimeout(safeNavigate, delayMs);
+    } else {
+      safeNavigate();
+    }
   }
 
   return (

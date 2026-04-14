@@ -543,14 +543,7 @@ if (window.google?.maps?.importLibrary) {
   const fieldErrorClass =
     "border-red-300 focus:border-red-400 focus:ring-red-100";
 
-const handleManualSubmit = () => {
-  setAskingPriceTouched(true);
-  setLivingAreaTouched(true);
-  setPlotSizeTouched(true);
-  setYearBuiltTouched(true);
-
-  if (!addressIsComplete || !generatedTitle || formHasValidationErrors) return;
-};
+// Manual submit removed in favor of native onSubmit
   return (
     <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
       <div className="px-6 pb-6 pt-6 sm:px-10 sm:pb-10 sm:pt-10">
@@ -590,22 +583,27 @@ const handleManualSubmit = () => {
                 event.preventDefault();
               }
             }}
-onSubmit={(event) => {
-  if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
-    event.preventDefault();
-    return;
-  }
+            onSubmit={(event) => {
+              setAskingPriceTouched(true);
+              setLivingAreaTouched(true);
+              setPlotSizeTouched(true);
+              setYearBuiltTouched(true);
 
-  trackEvent("CompleteRegistration", {
-    source: "new_listing_start_form_submit",
-    address_completed: true,
-    has_asking_price: !!askingPriceNumber,
-    has_living_area: !!livingAreaNumber,
-    has_plot_size: !!plotSizeNumber,
-    has_year_built: !!yearBuiltNumber,
-    property_type: propertyType || "unknown",
-  });
-}}          >
+              if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
+                event.preventDefault();
+                return;
+              }
+
+              trackEvent("CompleteRegistration", {
+                source: "new_listing_start_form_submit",
+                address_completed: true,
+                has_asking_price: !!askingPriceNumber,
+                has_living_area: !!livingAreaNumber,
+                has_plot_size: !!plotSizeNumber,
+                has_year_built: !!yearBuiltNumber,
+                property_type: propertyType || "unknown",
+              });
+            }}          >
             <input type="hidden" name="title" value={generatedTitle} />
             <input type="hidden" name="street" value={selectedAddress?.street || ""} />
             <input
@@ -1068,9 +1066,8 @@ onSubmit={(event) => {
               </div>
 
               <button
-                type="button"
+                type="submit"
                 disabled={!addressIsComplete || !generatedTitle || formHasValidationErrors}
-                onClick={handleManualSubmit}
                 className="group inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 {addressIsComplete ? "Verder met dit adres" : "Kies eerst een volledig adres"}
