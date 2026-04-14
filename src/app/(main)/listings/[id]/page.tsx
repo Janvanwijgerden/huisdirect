@@ -7,6 +7,7 @@ import ListingHighlights from "../../../../components/listings/ListingHighlights
 import ListingLeadForm from "../../../../components/listings/ListingLeadForm";
 import ListingSidebarCard from "../../../../components/listings/ListingSidebarCard";
 import ListingMap from "../../../../components/listings/ListingMap";
+import ViewContentTracker from "../../../../components/tracking/ViewContentTracker";
 
 type ListingPageProps = {
   params: {
@@ -291,6 +292,8 @@ export default async function ListingDetailPage({
 
   return (
     <main className="min-h-screen bg-neutral-50 pb-16">
+      <ViewContentTracker />
+      
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-neutral-900 sm:text-4xl">
