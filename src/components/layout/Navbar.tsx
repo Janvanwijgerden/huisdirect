@@ -85,32 +85,28 @@ export default async function Navbar() {
                   </span>
                 </button>
               </form>
-
-              <TrackButton
-                href="/listings/new"
-                className="ml-1 inline-flex h-12 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
-                eventName="Lead"
-                eventData={{ source: "navbar_desktop_logged_in" }}
-              >
-                Plaats woning
-              </TrackButton>
             </>
           ) : (
             <>
               <Link href="/auth/login" className={navItemClasses()}>
                 Inloggen
               </Link>
-
-              <TrackButton
-                href="/auth/register"
-                className="ml-1 inline-flex h-12 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
-                eventName="Lead"
-                eventData={{ source: "navbar_desktop_logged_out" }}
-              >
-                Plaats woning
-              </TrackButton>
             </>
           )}
+
+          {/* 🔥 ALTIJD dezelfde funnel */}
+          <TrackButton
+            href="/listings/new"
+            className="ml-1 inline-flex h-12 shrink-0 items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-6 text-base font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+            eventName="Lead"
+            eventData={{
+              source: isLoggedIn
+                ? "navbar_desktop_logged_in"
+                : "navbar_desktop_logged_out",
+            }}
+          >
+            Plaats woning
+          </TrackButton>
         </nav>
 
         <div className="hidden sm:block 2xl:hidden">

@@ -26,6 +26,17 @@ type Props = {
   action: any;
 };
 
+function fireMetaEvent(eventName: string, eventData?: Record<string, unknown>) {
+  try {
+    if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
+      (window as any).fbq("track", eventName, eventData);
+      console.log(`Meta event fired: ${eventName}`);
+    }
+  } catch (error) {
+    console.error("Meta tracking error:", error);
+  }
+}
+
 type SelectedAddress = {
   street: string;
   houseNumber: string;
@@ -541,16 +552,14 @@ if (window.google?.maps?.importLibrary) {
   const fieldErrorClass =
     "border-red-300 focus:border-red-400 focus:ring-red-100";
 
-  const handleManualSubmit = () => {
-    setAskingPriceTouched(true);
-    setLivingAreaTouched(true);
-    setPlotSizeTouched(true);
-    setYearBuiltTouched(true);
+const handleManualSubmit = () => {
+  setAskingPriceTouched(true);
+  setLivingAreaTouched(true);
+  setPlotSizeTouched(true);
+  setYearBuiltTouched(true);
 
-    if (!addressIsComplete || !generatedTitle || formHasValidationErrors) return;
-    formRef.current?.requestSubmit();
-  };
-
+  if (!addressIsComplete || !generatedTitle || formHasValidationErrors) return;
+};
   return (
     <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
       <div className="px-6 pb-6 pt-6 sm:px-10 sm:pb-10 sm:pt-10">
@@ -590,12 +599,22 @@ if (window.google?.maps?.importLibrary) {
                 event.preventDefault();
               }
             }}
-            onSubmit={(event) => {
-              if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
-                event.preventDefault();
-              }
-            }}
-          >
+onSubmit={(event) => {
+  if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
+    event.preventDefault();
+    return;
+  }
+
+  fireMetaEvent("CompleteRegistration", {
+    source: "new_listing_start_form_submit",
+    address_completed: true,
+    has_asking_price: !!askingPriceNumber,
+    has_living_area: !!livingAreaNumber,
+    has_plot_size: !!plotSizeNumber,
+    has_year_built: !!yearBuiltNumber,
+    property_type: propertyType || "unknown",
+  });
+}}          >
             <input type="hidden" name="title" value={generatedTitle} />
             <input type="hidden" name="street" value={selectedAddress?.street || ""} />
             <input

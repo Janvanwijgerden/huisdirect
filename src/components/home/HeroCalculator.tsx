@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Info } from "lucide-react";
+import TrackButton from "../TrackButton";
 
 const REALTOR_PERCENTAGE = 1.35;
 const PLATFORM_PRICE = 195;
@@ -31,6 +32,19 @@ function euro(amount: number) {
   }).format(amount);
 }
 
+function fireMetaEvent(eventName: string, eventData?: Record<string, unknown>) {
+  try {
+    if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
+      (window as any).fbq("track", eventName, eventData);
+      console.log(`Meta event fired: ${eventName}`);
+    } else {
+      console.log("fbq not found");
+    }
+  } catch (error) {
+    console.error("Meta tracking error:", error);
+  }
+}
+
 function InfoTooltip({ text }: { text: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -49,9 +63,10 @@ function InfoTooltip({ text }: { text: string }) {
       </button>
 
       <span
-className={`absolute left-1/2 top-full z-20 mt-2 w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-white/10 bg-stone-950/95 p-3 text-left text-xs leading-relaxed text-stone-200 shadow-xl transition sm:left-full sm:top-1/2 sm:mt-0 sm:ml-3 sm:w-72 sm:translate-x-0 sm:-translate-y-1/2 ${
-  isOpen ? "block" : "hidden"
-}`}      >
+        className={`absolute left-1/2 top-full z-20 mt-2 w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-white/10 bg-stone-950/95 p-3 text-left text-xs leading-relaxed text-stone-200 shadow-xl transition sm:left-full sm:top-1/2 sm:mt-0 sm:ml-3 sm:w-72 sm:translate-x-0 sm:-translate-y-1/2 ${
+          isOpen ? "block" : "hidden"
+        }`}
+      >
         {text}
       </span>
     </span>
@@ -80,6 +95,10 @@ export default function HeroCalculator() {
 
     if (shouldOpenCalculator) {
       setIsOpen(true);
+
+      fireMetaEvent("InitiateCheckout", {
+        source: hasFlyerTracking ? "flyer_auto_open" : "hash_auto_open",
+      });
 
       setTimeout(() => {
         const element = document.getElementById("calculator");
@@ -125,11 +144,25 @@ export default function HeroCalculator() {
     return total;
   }, [photographer, marketing]);
 
+  function handleCalculatorToggle() {
+    setIsOpen((prev) => {
+      const next = !prev;
+
+      if (next) {
+        fireMetaEvent("InitiateCheckout", {
+          source: "hero_calculator_toggle",
+        });
+      }
+
+      return next;
+    });
+  }
+
   return (
     <div id="calculator" className="mt-8 w-full max-w-3xl scroll-mt-24">
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleCalculatorToggle}
         className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 active:scale-[0.98] sm:w-auto sm:justify-start sm:px-6"
       >
         <span>Bereken direct uw besparing</span>
@@ -454,12 +487,14 @@ export default function HeroCalculator() {
                 </p>
 
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <Link
+                  <TrackButton
                     href="/listings/new"
                     className="inline-flex items-center justify-center rounded-xl bg-green-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-400 active:scale-[0.98]"
+                    eventName="Lead"
+                    eventData={{ source: "hero_calculator" }}
                   >
                     Plaats uw woning
-                  </Link>
+                  </TrackButton>
 
                   <Link
                     href="/voor-verkopers"
