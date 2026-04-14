@@ -69,6 +69,30 @@ export default function MobileNavMenu({
               Hoe het werkt
             </Link>
 
+            <Link
+              href="/voor-verkopers"
+              onClick={closeMenu}
+              className="flex min-h-[48px] items-center rounded-2xl px-4 py-3 text-base font-medium text-slate-800 transition hover:bg-slate-50"
+            >
+              Voor verkopers
+            </Link>
+
+            <Link
+              href="/over-ons"
+              onClick={closeMenu}
+              className="flex min-h-[48px] items-center rounded-2xl px-4 py-3 text-base font-medium text-slate-800 transition hover:bg-slate-50"
+            >
+              Over ons
+            </Link>
+
+            <Link
+              href="/contact"
+              onClick={closeMenu}
+              className="flex min-h-[48px] items-center rounded-2xl px-4 py-3 text-base font-medium text-slate-800 transition hover:bg-slate-50"
+            >
+              Contact
+            </Link>
+
             {isLoggedIn ? (
               <>
                 <div className="mb-2 mt-4 px-2 pt-1">

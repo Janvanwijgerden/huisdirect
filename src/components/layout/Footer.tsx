@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from "next/link";
 
 export default function Footer() {
   return (
@@ -119,7 +119,7 @@ export default function Footer() {
             <ul className="mt-6 space-y-4 text-sm">
               <li>
                 <Link
-                  href="#"
+                  href="/over-ons"
                   className="text-stone-400 transition hover:text-white"
                 >
                   Over ons
@@ -127,7 +127,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/contact"
                   className="text-stone-400 transition hover:text-white"
                 >
                   Contact
