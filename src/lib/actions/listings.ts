@@ -3,6 +3,7 @@
 import { createClient } from '../supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { sendMetaEvent } from '../meta-server';
 
 function slugify(text: string): string {
   return text
@@ -324,6 +325,7 @@ export async function createDraftListing(formData: FormData): Promise<void> {
   const valuationModelVersion = String(
     formData.get('valuation_model_version') || ''
   ).trim();
+  const metaEventId = String(formData.get('meta_event_id') || '').trim();
 
   const payload = {
     user_id: user.id,
@@ -387,12 +389,20 @@ export async function createDraftListing(formData: FormData): Promise<void> {
   };
 
   const newListing = await insertListingWithUniqueSlug(supabase, payload, title);
+  console.log("🔥 SERVER FLOW HIT");
+  console.log("🔥 metaEventId:", metaEventId);
+
+  if (metaEventId) {
+    await sendMetaEvent({
+      eventName: 'CompleteRegistration',
+      eventId: metaEventId,
+    });
+  }
 
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/listings');
 
-  redirect(`/listings/${newListing.id}/edit`);
-}
+  redirect(`/listings/${newListing.id}/edit`);}
 
 export async function updateDraftListing(
   id: string,

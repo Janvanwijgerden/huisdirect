@@ -167,7 +167,13 @@ function parseFormattedNumber(value: string) {
   const parsed = Number(digits);
   return Number.isFinite(parsed) ? parsed : null;
 }
+function createMetaEventId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
 
+  return `meta_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 async function fetchBagData(
   postcode: string,
   huisnummer: string,
@@ -195,6 +201,7 @@ async function fetchBagData(
 export default function NewListingStartForm({ action }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const [metaEventId] = useState(() => createMetaEventId());
 
   const [selectedAddress, setSelectedAddress] = useState<SelectedAddress | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
@@ -584,27 +591,38 @@ if (window.google?.maps?.importLibrary) {
               }
             }}
             onSubmit={(event) => {
-              setAskingPriceTouched(true);
-              setLivingAreaTouched(true);
-              setPlotSizeTouched(true);
-              setYearBuiltTouched(true);
+  console.log("SUBMIT TRIGGERED");
+  console.log("addressIsComplete:", addressIsComplete);
+  console.log("generatedTitle:", generatedTitle);
+  console.log("formHasValidationErrors:", formHasValidationErrors);
 
-              if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
-                event.preventDefault();
-                return;
-              }
+  setAskingPriceTouched(true);
+  setLivingAreaTouched(true);
+  setPlotSizeTouched(true);
+  setYearBuiltTouched(true);
 
-              trackEvent("CompleteRegistration", {
-                source: "new_listing_start_form_submit",
-                address_completed: true,
-                has_asking_price: !!askingPriceNumber,
-                has_living_area: !!livingAreaNumber,
-                has_plot_size: !!plotSizeNumber,
-                has_year_built: !!yearBuiltNumber,
-                property_type: propertyType || "unknown",
-              });
-            }}          >
+  if (!addressIsComplete || !generatedTitle || formHasValidationErrors) {
+    console.log("❌ BLOCKED");
+    event.preventDefault();
+    return;
+  }
+
+  console.log("✅ SUBMIT OK");
+
+  trackEvent("CompleteRegistration", {
+    event_id: metaEventId,
+    source: "new_listing_start_form_submit",
+    address_completed: true,
+    has_asking_price: !!askingPriceNumber,
+    has_living_area: !!livingAreaNumber,
+    has_plot_size: !!plotSizeNumber,
+    has_year_built: !!yearBuiltNumber,
+    property_type: propertyType || "unknown",
+  });
+}}
+         >
             <input type="hidden" name="title" value={generatedTitle} />
+            <input type="hidden" name="meta_event_id" value={metaEventId} />
             <input type="hidden" name="street" value={selectedAddress?.street || ""} />
             <input
               type="hidden"
