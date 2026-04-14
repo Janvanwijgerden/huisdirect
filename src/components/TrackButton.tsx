@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { MouseEvent, ReactNode } from "react";
-import { trackEvent } from "../lib/fbq";
+import type { ReactNode, MouseEvent } from "react";
 
 type TrackButtonProps = {
   href: string;
@@ -22,7 +21,10 @@ export default function TrackButton({
   onTrackedClick,
 }: TrackButtonProps) {
   function fireEvent() {
-    trackEvent(eventName, eventData);
+    if (typeof window !== "undefined" && (window as any).fbq) {
+      (window as any).fbq("track", eventName, eventData);
+      console.log(`Meta event fired: ${eventName}`);
+    }
 
     if (onTrackedClick) {
       onTrackedClick();
