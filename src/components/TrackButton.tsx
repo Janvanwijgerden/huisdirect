@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import type { ReactNode, MouseEvent } from "react";
-
 type TrackButtonProps = {
   href: string;
-  children: ReactNode;
+  children: React.ReactNode;
   className?: string;
   eventName?: string;
   eventData?: Record<string, unknown>;
@@ -20,35 +17,28 @@ export default function TrackButton({
   eventData,
   onTrackedClick,
 }: TrackButtonProps) {
-  function fireEvent() {
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+
     if (typeof window !== "undefined" && (window as any).fbq) {
       (window as any).fbq("track", eventName, eventData);
       console.log(`Meta event fired: ${eventName}`);
+    } else {
+      console.log("fbq not found");
     }
 
     if (onTrackedClick) {
       onTrackedClick();
     }
-  }
 
-  function handleClick() {
-    fireEvent();
-  }
-
-  function handleAuxClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (event.button === 1) {
-      fireEvent();
-    }
+    setTimeout(() => {
+      window.location.href = href;
+    }, 150);
   }
 
   return (
-    <Link
-      href={href}
-      className={className}
-      onClick={handleClick}
-      onAuxClick={handleAuxClick}
-    >
+    <a href={href} className={className} onClick={handleClick}>
       {children}
-    </Link>
+    </a>
   );
 }
