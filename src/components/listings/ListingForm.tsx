@@ -2,7 +2,7 @@
 
 import { useRef, useTransition, useState, useEffect } from "react";
 import { updateDraftListing } from "../../lib/actions/listings";
-import {
+import PaymentModal from "../payments/PaymentModal";import {
   Save,
   CheckCircle2,
   AlertCircle,
@@ -308,6 +308,7 @@ export default function ListingFormC({
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(
     Boolean(listing.title?.trim())
   );
@@ -571,6 +572,11 @@ try {
   };
 
 const handleSaveAndPublish = async () => {
+  if (!listing.has_paid) {
+    setShowPaymentModal(true);
+    return;
+  }
+
   const formElement = formRef.current;
   if (!formElement) return;
   if (isSavingRef.current) return;
@@ -602,7 +608,8 @@ const handleSaveAndPublish = async () => {
       isSavingRef.current = false;
     }
   });
-};  const inputClass =
+};
+const inputClass =
     "w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100";
 
   const sectionClass = "rounded-3xl border border-stone-200 bg-white p-6 shadow-sm";
@@ -614,7 +621,7 @@ const handleSaveAndPublish = async () => {
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
             <div>
-              <h3 className="font-semibold text-red-900">Publiceren lukt nog niet</h3>
+              <h3 className="font-semibold text-red-900">Indienen lukt nog niet</h3>
               <p className="mt-1">{publishError}</p>
             </div>
           </div>
@@ -890,8 +897,8 @@ const handleSaveAndPublish = async () => {
         Hoe meer relevante kenmerken je invult, hoe sterker je woning overkomt en hoe beter de AI straks een verkoopgerichte omschrijving kan schrijven.
       </p>
     </div>
-    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-      Funda+
+    <span className="roundSed-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+      Belangrijk
     </span>
   </div>
 
@@ -1219,10 +1226,10 @@ const handleSaveAndPublish = async () => {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
-                Opslaan & publiceren
+                Opslaan & indienen
               </h2>
               <p className="mt-2 text-sm leading-6 text-stone-500">
-                Sla je voortgang op als concept of zet je woning live zodra alles goed staat.
+                Sla je voortgang op als concept of dien je woning in voor controle zodra alles goed staat.
               </p>
             </div>
             <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
@@ -1278,15 +1285,43 @@ const handleSaveAndPublish = async () => {
               ) : (
                 <Globe className="h-5 w-5" />
               )}
-              {isPending ? "Bezig..." : "Zet woning live"}
+              {isPending ? "Bezig..." : "Dien woning in"}
             </button>
           </div>
 
           <p className="mt-4 text-xs text-stone-500">
-            Wijzigingen worden automatisch opgeslagen. Later kun je alles nog aanpassen.
+            Wijzigingen worden automatisch opgeslagen. Na indienen controleren we je woning voordat deze live komt.
           </p>
         </section>
       </form>
+
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+onStartPayment={async () => {
+    setShowPaymentModal(false);
+  setPublishError(null);
+
+  try {
+    const res = await fetch("/api/stripe/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ listingId: listing.id }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || "Kon Stripe checkout niet starten.");
+    }
+
+    window.location.href = data.url;
+  } catch (error: any) {
+    setPublishError(error.message || "Kon Stripe checkout niet starten.");
+  }
+}}      />
     </div>
   );
 }

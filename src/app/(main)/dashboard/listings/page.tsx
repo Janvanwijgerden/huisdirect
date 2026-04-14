@@ -18,6 +18,7 @@ type Listing = {
   description?: string | null;
   property_type?: string | null;
   status?: string | null;
+  rejection_reason?: string | null;
   listing_images?:
     | Array<{
         id: string;
@@ -164,6 +165,8 @@ export default async function DashboardListingsPage() {
           <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {validListings.map((listing) => {
               const isLive = listing.status === "active";
+              const isPending = listing.status === "pending";
+              const isRejected = listing.status === "rejected";
               const completionPercentage = getCompletionPercentage(listing);
               const publicPath = buildPublicHousePath({
                 slug: listing.slug,
@@ -199,6 +202,14 @@ export default async function DashboardListingsPage() {
                           <Check className="h-3.5 w-3.5" />
                           Live
                         </span>
+                      ) : isPending ? (
+                        <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm ring-1 ring-inset ring-amber-500/30">
+                          In behandeling
+                        </span>
+                      ) : isRejected ? (
+                        <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-red-700 shadow-sm ring-1 ring-inset ring-red-500/30">
+                          Afgewezen
+                        </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-inset ring-neutral-400/20">
                           Concept
@@ -208,6 +219,26 @@ export default async function DashboardListingsPage() {
                   </div>
 
                   <div className="p-6">
+                    {isRejected && listing.rejection_reason && (
+                      <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+                        <p className="text-sm font-semibold text-red-800">
+                          Deze woning is afgewezen
+                        </p>
+                        <p className="mt-1 text-sm text-red-700">
+                          {listing.rejection_reason}
+                        </p>
+
+                        <div className="mt-3">
+                          <Link
+                            href={`/listings/${listing.id}/edit`}
+                            className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                          >
+                            Pas aan en dien opnieuw in
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <h2 className="truncate text-xl font-semibold tracking-tight text-neutral-900">
@@ -276,7 +307,7 @@ export default async function DashboardListingsPage() {
                           href={`/listings/${listing.id}/edit`}
                           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
                         >
-                          Compleet maken
+                          {isRejected ? "Pas aan" : "Compleet maken"}
                           <ChevronRight className="h-4 w-4" />
                         </Link>
                       )}

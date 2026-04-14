@@ -422,32 +422,6 @@ export async function updateDraftListing(
 
   if (title) {
     updates.title = title;
-
-    const { data: currentListing, error: currentError } = await supabase
-      .from('listings')
-      .select('title, slug')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
-
-    if (currentError || !currentListing) {
-      return {
-        error: `Concept opslaan mislukt: ${
-          currentError?.message || 'huidige listing niet gevonden'
-        }`,
-      };
-    }
-
-    const currentTitle = String(currentListing.title || '').trim();
-    const currentSlug = String(currentListing.slug || '').trim();
-    const normalizedCurrentTitle = slugify(currentTitle);
-    const normalizedNewTitle = slugify(title);
-
-    const titleChanged = normalizedNewTitle && normalizedNewTitle !== normalizedCurrentTitle;
-
-    if (titleChanged && normalizedNewTitle !== currentSlug) {
-      updates.slug = await generateUniqueSlug(supabase, title, id);
-    }
   }
 
   const desc = formData.get('description');
@@ -703,6 +677,10 @@ export async function attemptPublishListing(id: string): Promise<void> {
   }
 
   const listing = listingRes.data;
+  if (!listing.has_paid) {
+  throw new Error('Je moet eerst betalen voordat je woning live kan.');
+}
+
   const images = imagesRes.data || [];
 
   if (!listing.title || listing.title.length < 5) {
@@ -737,22 +715,25 @@ export async function attemptPublishListing(id: string): Promise<void> {
   const { error } = await supabase
     .from('listings')
     .update({
-      status: 'active',
+      status: 'pending',
+      rejection_reason: null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('user_id', user.id);
 
   if (error) {
-    throw new Error(`Publiceren mislukt: ${error.message}`);
+    throw new Error(`Indienen mislukt: ${error.message}`);
   }
 
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${id}`);
   revalidatePath('/listings');
+  revalidatePath('/manager');
+  revalidatePath('/manager/listings');
 
-  redirect(`/listings/${id}`);
+  redirect('/dashboard');
 }
 
 export async function markListingAsSold(id: string): Promise<void> {
@@ -920,4 +901,86 @@ export async function updateMarketingBudget(
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/listings');
   revalidatePath(`/listings/${listingId}`);
+}
+
+export async function approveListing(id: string): Promise<void> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Niet ingelogd.');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.role !== 'manager') {
+    throw new Error('Geen toegang.');
+  }
+
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      status: 'active',
+      rejection_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Goedkeuren mislukt: ${error.message}`);
+  }
+
+  revalidatePath('/manager');
+  revalidatePath('/manager/listings');
+  revalidatePath('/listings');
+}
+
+export async function rejectListingWithReason(
+  id: string,
+  formData: FormData
+): Promise<void> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Niet ingelogd.');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.role !== 'manager') {
+    throw new Error('Geen toegang.');
+  }
+
+  const rejectionReason = String(formData.get('rejection_reason') || '').trim();
+
+  if (!rejectionReason) {
+    throw new Error('Geef een afwijsreden op.');
+  }
+
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      status: 'rejected',
+      rejection_reason: rejectionReason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Afwijzen mislukt: ${error.message}`);
+  }
+
+  revalidatePath('/manager');
+  revalidatePath('/manager/listings');
 }

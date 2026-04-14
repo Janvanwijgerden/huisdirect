@@ -77,7 +77,12 @@ function getNextStep(listing: any, imageCount: number) {
   };
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payment?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
   const supabase = createClient();
 
   const {
@@ -100,6 +105,22 @@ export default async function DashboardPage() {
   if (!listing) {
     return (
       <main className="min-h-screen bg-neutral-50">
+        {resolvedSearchParams?.payment === "success" && (
+          <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+              <strong>Betaling gelukt.</strong> Je woning staat nu in behandeling en wordt gecontroleerd.
+            </div>
+          </div>
+        )}
+
+        {resolvedSearchParams?.payment === "cancel" && (
+          <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+              <strong>Betaling afgebroken.</strong> Je woning is nog niet ingediend. Je kunt het later opnieuw proberen.
+            </div>
+          </div>
+        )}
+
         <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
           <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:rounded-[32px]">
             <div className="grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_360px]">
@@ -247,6 +268,22 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-neutral-50">
+      {resolvedSearchParams?.payment === "success" && (
+        <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+            <strong>Betaling gelukt.</strong> Je woning staat nu in behandeling en wordt gecontroleerd.
+          </div>
+        </div>
+      )}
+
+      {resolvedSearchParams?.payment === "cancel" && (
+        <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+            <strong>Betaling afgebroken.</strong> Je woning is nog niet ingediend. Je kunt het later opnieuw proberen.
+          </div>
+        </div>
+      )}
+
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mb-6 flex flex-col gap-3 sm:mb-8">
           <div className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
