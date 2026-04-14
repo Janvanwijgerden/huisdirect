@@ -32,18 +32,7 @@ function euro(amount: number) {
   }).format(amount);
 }
 
-function fireMetaEvent(eventName: string, eventData?: Record<string, unknown>) {
-  try {
-    if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
-      (window as any).fbq("track", eventName, eventData);
-      console.log(`Meta event fired: ${eventName}`);
-    } else {
-      console.log("fbq not found");
-    }
-  } catch (error) {
-    console.error("Meta tracking error:", error);
-  }
-}
+import { trackEvent } from "../../lib/fbq";
 
 function InfoTooltip({ text }: { text: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -96,7 +85,7 @@ export default function HeroCalculator() {
     if (shouldOpenCalculator) {
       setIsOpen(true);
 
-      fireMetaEvent("InitiateCheckout", {
+      trackEvent("InitiateCheckout", {
         source: hasFlyerTracking ? "flyer_auto_open" : "hash_auto_open",
       });
 
@@ -149,7 +138,7 @@ export default function HeroCalculator() {
       const next = !prev;
 
       if (next) {
-        fireMetaEvent("InitiateCheckout", {
+        trackEvent("InitiateCheckout", {
           source: "hero_calculator_toggle",
         });
       }

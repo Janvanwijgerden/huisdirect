@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { trackEvent } from "../../lib/fbq";
 
 export default function ViewContentTracker() {
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).fbq) {
-      (window as any).fbq("track", "ViewContent");
-      console.log("👁️ ViewContent fired");
-    } else {
-      console.log("❌ fbq not found (ViewContent)");
-    }
+    trackEvent("ViewContent");
   }, []);
 
   return null;

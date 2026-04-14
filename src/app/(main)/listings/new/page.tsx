@@ -4,20 +4,11 @@ import { useEffect } from "react";
 import { createDraftListing } from "../../../../lib/actions/listings";
 import NewListingStartForm from "../../../../components/listings/new/new-listing-start-form";
 
-function fireMetaEvent(eventName: string, eventData?: Record<string, unknown>) {
-  try {
-    if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
-      (window as any).fbq("track", eventName, eventData);
-      console.log(`Meta event fired: ${eventName}`);
-    }
-  } catch (error) {
-    console.error("Meta tracking error:", error);
-  }
-}
+import { trackEvent } from "../../../../lib/fbq";
 
 export default function NewListingPage() {
   useEffect(() => {
-    fireMetaEvent("ViewContent", {
+    trackEvent("ViewContent", {
       page: "new_listing",
     });
   }, []);

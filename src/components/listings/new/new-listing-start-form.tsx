@@ -26,16 +26,7 @@ type Props = {
   action: any;
 };
 
-function fireMetaEvent(eventName: string, eventData?: Record<string, unknown>) {
-  try {
-    if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
-      (window as any).fbq("track", eventName, eventData);
-      console.log(`Meta event fired: ${eventName}`);
-    }
-  } catch (error) {
-    console.error("Meta tracking error:", error);
-  }
-}
+import { trackEvent } from "../../../lib/fbq";
 
 type SelectedAddress = {
   street: string;
@@ -605,7 +596,7 @@ onSubmit={(event) => {
     return;
   }
 
-  fireMetaEvent("CompleteRegistration", {
+  trackEvent("CompleteRegistration", {
     source: "new_listing_start_form_submit",
     address_completed: true,
     has_asking_price: !!askingPriceNumber,

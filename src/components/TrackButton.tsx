@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { trackEvent } from "../lib/fbq";
 
 type TrackButtonProps = {
   href: string;
@@ -54,34 +55,22 @@ export default function TrackButton({
 
     e.preventDefault();
 
-    try {
-      if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
-        let didNavigate = false;
+    let didNavigate = false;
 
-        const safeNavigate = () => {
-          if (didNavigate) return;
-          didNavigate = true;
-          navigate();
-        };
+    const safeNavigate = () => {
+      if (didNavigate) return;
+      didNavigate = true;
+      navigate();
+    };
 
-        (window as any).fbq("track", eventName, eventData);
-
-        if (onTrackedClick) {
-          onTrackedClick();
-        }
-
-        window.setTimeout(safeNavigate, delayMs);
-        return;
-      }
-    } catch (error) {
-      console.error("Meta tracking error:", error);
-    }
+    // Track the event
+    trackEvent(eventName, eventData);
 
     if (onTrackedClick) {
       onTrackedClick();
     }
 
-    navigate();
+    window.setTimeout(safeNavigate, delayMs);
   }
 
   return (
