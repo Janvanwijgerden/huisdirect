@@ -25,6 +25,11 @@ export default function RootLayout({
   return (
     <html lang="nl" className={inter.variable}>
       <head>
+        <meta
+          name="google-site-verification"
+          content="UsQxJN917Xkqvz_kEAJgf6l82-ap2cBV4HftNFoSS0k"
+        />
+
         {PIXEL_ID && (
           <>
             {/* Meta Pixel */}
