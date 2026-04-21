@@ -101,6 +101,21 @@ export default function HeroCalculator() {
     }
   }, []);
 
+  useEffect(() => {
+  const handler = () => {
+    const el = document.getElementById("calculator");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  window.addEventListener("open-calculator", handler);
+
+  return () => {
+    window.removeEventListener("open-calculator", handler);
+  };
+}, []);
+
   const parsedHomeValue = useMemo(
     () => parseCurrencyInput(homeValue),
     [homeValue]

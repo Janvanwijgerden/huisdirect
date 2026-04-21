@@ -110,7 +110,8 @@ export default async function HomePage() {
                   Bepaal je prijs
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                  Jij bepaalt zelf de vraagprijs en houdt de regie over de verkoop.
+                  Jij bepaalt zelf de vraagprijs en houdt de regie over de
+                  verkoop.
                 </p>
               </div>
             </div>
@@ -124,7 +125,8 @@ export default async function HomePage() {
                   Wij publiceren je huis
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                  Wij zetten je woning professioneel online voor serieuze kopers.
+                  Wij zetten je woning professioneel online voor serieuze
+                  kopers.
                 </p>
               </div>
             </div>

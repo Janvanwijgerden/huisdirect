@@ -391,7 +391,7 @@ export default function HuisVerkopenStappenplanPage() {
             <p className="mt-4 text-base leading-7 text-neutral-300">
               Gebruik het stappenplan als basis en ontdek daarna wat u mogelijk
               kunt besparen met HuisDirect.
-            </p>
+            </p>s
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
