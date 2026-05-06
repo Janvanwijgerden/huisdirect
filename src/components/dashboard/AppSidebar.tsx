@@ -12,6 +12,7 @@ import {
   Building2,
 } from "lucide-react";
 import { signOut } from "../../lib/actions/auth";
+import { BarChart3 } from "lucide-react";
 
 type AppSidebarProps = {
   listingCount?: number;
@@ -115,38 +116,11 @@ export default function AppSidebar({
                     )}
                   </span>
                 </Link>
+                
               );
             })}
           </nav>
-
-          <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
-                <Building2 className="h-5 w-5" />
-              </span>
-
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">
-                  {hasMultipleListings ? "Je woningen" : "Je woning"}
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                  {listingsSummary}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
-                Overzicht
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                {hasMultipleListings
-                  ? "Je account is nu ingericht voor meerdere woningen. Beheer ze vanuit één rustige omgeving."
-                  : "Je account is ingericht op één woning, maar is klaar voor uitbreiding als je later nog een woning toevoegt."}
-              </p>
-            </div>
           </div>
-        </div>
 
         <div className="border-t border-slate-100 pt-4">
           <form action={signOut}>

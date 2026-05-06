@@ -14,6 +14,8 @@ import {
   Ruler,
   Sparkles,
 } from "lucide-react";
+import ListingStats from "../../../components/dashboard/ListingStats";
+
 
 function formatPrice(value?: number | null) {
   if (!value) return "Nog niet ingevuld";
@@ -41,7 +43,45 @@ function getCompletionScore(listing: any, imageCount: number) {
   return Math.min(score, 100);
 }
 
+function getListingPriority(status?: string | null) {
+  if (status === "active") return 1;
+  if (status === "pending") return 2;
+  if (status === "draft") return 3;
+  if (status === "rejected") return 4;
+  if (status === "sold") return 5;
+  return 6;
+}
+
+function getBestDashboardListing(listings: any[]) {
+  return [...listings].sort((a, b) => {
+    const priorityDifference =
+      getListingPriority(a.status) - getListingPriority(b.status);
+
+    if (priorityDifference !== 0) return priorityDifference;
+
+    return (
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+    );
+  })[0];
+}
+
 function getNextStep(listing: any, imageCount: number) {
+  const status = listing.status;
+
+  if (status === "sold") {
+    return null;
+  }
+
+  if (status === "pending" || status === "active") {
+    return {
+      title: "Meer bereik = sneller verkocht",
+      text: "Je woning staat live of wordt gecontroleerd. Deel hem actief en vergroot je bereik richting kopers in jouw regio.",
+      href: `/dashboard/marketing/${listing.id}`,
+      cta: "Bekijk & deel je woning",
+    };
+  }
+
   if (imageCount === 0) {
     return {
       title: "Voeg foto’s toe",
@@ -77,6 +117,14 @@ function getNextStep(listing: any, imageCount: number) {
   };
 }
 
+function getDashboardBadge(status?: string | null) {
+  if (status === "active") return "Jouw woning staat live";
+  if (status === "pending") return "Jouw woning wordt gecontroleerd";
+  if (status === "sold") return "Jouw woning is verkocht";
+  if (status === "rejected") return "Aanpassingen nodig";
+  return "Jouw woning in opbouw";
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -96,11 +144,10 @@ export default async function DashboardPage({
   const { data: listings } = await supabase
     .from("listings")
     .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .eq("user_id", user.id);
 
-  const listing = listings?.[0] ?? null;
+  const userListings = listings ?? [];
+  const listing = userListings.length > 0 ? getBestDashboardListing(userListings) : null;
 
   if (!listing) {
     return (
@@ -124,6 +171,8 @@ export default async function DashboardPage({
         <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
           <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:rounded-[32px]">
             <div className="grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_360px]">
+              <ListingStats listingId={listing.id} />
+              
               <div className="p-5 sm:p-8 lg:p-10">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="inline-flex h-16 w-16 items-center justify-center rounded-[22px] bg-emerald-50">
@@ -288,8 +337,14 @@ export default async function DashboardPage({
         <div className="mb-6 flex flex-col gap-3 sm:mb-8">
           <div className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
             <Sparkles className="h-3.5 w-3.5" />
-            Jouw woning in opbouw
+            {getDashboardBadge(listing.status)}
           </div>
+
+          {userListings.length > 1 && (
+            <p className="w-fit rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-500 ring-1 ring-neutral-200">
+              {userListings.length} woningen in je account · Home toont eerst live woningen
+            </p>
+          )}
 
           <h1 className="max-w-4xl text-[2.2rem] font-semibold leading-[1.02] tracking-tight text-neutral-950 sm:text-4xl">
             {listing.title || `${listing.street || "Jouw woning"}, ${listing.city || ""}`}
@@ -303,27 +358,29 @@ export default async function DashboardPage({
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_380px] xl:gap-8">
           <aside className="order-1 space-y-4 sm:space-y-6 xl:order-2">
-            <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/70 p-5 sm:rounded-[32px] sm:p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
-                Eerstvolgende beste stap
-              </p>
+            {nextStep && (
+              <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/70 p-5 sm:rounded-[32px] sm:p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
+                  Eerstvolgende beste stap
+                </p>
 
-              <h3 className="mt-3 text-xl font-semibold tracking-tight text-neutral-950 sm:text-[1.65rem]">
-                {nextStep.title}
-              </h3>
+                <h3 className="mt-3 text-xl font-semibold tracking-tight text-neutral-950 sm:text-[1.65rem]">
+                  {nextStep.title}
+                </h3>
 
-              <p className="mt-2 text-sm leading-7 text-neutral-600">
-                {nextStep.text}
-              </p>
+                <p className="mt-2 text-sm leading-7 text-neutral-600">
+                  {nextStep.text}
+                </p>
 
-              <Link
-                href={nextStep.href}
-                className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-              >
-                {nextStep.cta}
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
+                <Link
+                  href={nextStep.href}
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  {nextStep.cta}
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            )}
 
             <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:rounded-[32px] sm:p-6">
               <p className="text-sm font-medium text-neutral-500">Voortgang</p>
@@ -370,23 +427,25 @@ export default async function DashboardPage({
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.04)] sm:rounded-[32px] sm:p-6">
-              <h3 className="text-lg font-semibold tracking-tight text-neutral-950">
-                Klaar om live te gaan?
-              </h3>
+            {listing.status !== "sold" && (
+              <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.04)] sm:rounded-[32px] sm:p-6">
+                <h3 className="text-lg font-semibold tracking-tight text-neutral-950">
+                  Klaar om live te gaan?
+                </h3>
 
-              <p className="mt-2 text-sm leading-7 text-neutral-600">
-                Publiceer pas als je advertentie vertrouwen uitstraalt. Goede foto’s en een sterke omschrijving maken het verschil.
-              </p>
+                <p className="mt-2 text-sm leading-7 text-neutral-600">
+                  Publiceer pas als je advertentie vertrouwen uitstraalt. Goede foto’s en een sterke omschrijving maken het verschil.
+                </p>
 
-              <Link
-                href={`/listings/${listing.id}/edit`}
-                className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50"
-              >
-                Eerst nog verbeteren
-                <PencilLine className="h-4 w-4" />
-              </Link>
-            </div>
+                <Link
+                  href={`/listings/${listing.id}/edit`}
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50"
+                >
+                  Eerst nog verbeteren
+                  <PencilLine className="h-4 w-4" />
+                </Link>
+              </div>
+            )}
           </aside>
 
           <div className="order-2 space-y-6 sm:space-y-8 xl:order-1">

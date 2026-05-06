@@ -8,6 +8,9 @@ import ListingLeadForm from "../../../../components/listings/ListingLeadForm";
 import ListingSidebarCard from "../../../../components/listings/ListingSidebarCard";
 import ListingMap from "../../../../components/listings/ListingMap";
 import ViewContentTracker from "../../../../components/tracking/ViewContentTracker";
+import FavoriteButton from "../../../../components/listings/FavoriteButton";
+import SocialProofCard from "../../../../components/listings/SocialProofCard";
+import ListingSocialProof from "../../../../components/listings/ListingSocialProof";
 
 type ListingPageProps = {
   params: {
@@ -292,13 +295,15 @@ export default async function ListingDetailPage({
 
   return (
     <main className="min-h-screen bg-neutral-50 pb-16">
-      <ViewContentTracker />
+<ViewContentTracker listingId={listing.id} />
       
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-neutral-900 sm:text-4xl">
             {listing.title}
           </h1>
+
+          <ListingSocialProof listingId={listing.id} />
 
           <div className="mt-2 flex items-center gap-2 text-neutral-600">
             <MapPin className="h-5 w-5 shrink-0" />
@@ -311,11 +316,21 @@ export default async function ListingDetailPage({
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="min-w-0 space-y-10">
-            <ListingImageCarousel
-              images={galleryImages}
-              title={listing.title || "Woning"}
-              status={listing.status}
-            />
+<div className="relative">
+  <FavoriteButton
+  listingId={listing.id}
+  initialCount={listing.favorites_count || 0}
+  isLoggedIn={!!user}
+/>
+
+  <ListingImageCarousel
+    images={galleryImages}
+    title={listing.title || "Woning"}
+    status={listing.status}
+  />
+</div>
+
+<SocialProofCard listingId={listing.id} />
 
             <ListingHighlights
               propertyType={formatPropertyType(listing.property_type)}
