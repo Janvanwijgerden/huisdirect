@@ -21,6 +21,13 @@ type PageProps = {
   };
 };
 
+type MarketingInsight = {
+  type: "info" | "warning" | "success";
+  title: string;
+  message: string;
+  action: "share" | "improve" | "marketing" | "scale";
+};
+
 function countEvents(events: any[], eventType: string) {
   return events.filter((event) => event.event_type === eventType).length;
 }
@@ -28,6 +35,66 @@ function countEvents(events: any[], eventType: string) {
 function formatPercentage(value: number) {
   if (!Number.isFinite(value)) return "0%";
   return `${value.toFixed(1)}%`;
+}
+
+function getMarketingInsights({
+  viewCount,
+  leadCount,
+  engagementRate,
+  conversionRate,
+}: {
+  viewCount: number;
+  leadCount: number;
+  engagementRate: number;
+  conversionRate: number;
+}): MarketingInsight {
+  if (viewCount < 10) {
+    return {
+      type: "info",
+      title: "Je woning wordt nog weinig gezien",
+      message:
+        "Start met delen in je eigen netwerk: WhatsApp, familie, werk, buurtapps en sportgroepen. Dit levert vaak de eerste warme aandacht op.",
+      action: "share",
+    };
+  }
+
+  if (viewCount >= 10 && leadCount === 0 && engagementRate < 5) {
+    return {
+      type: "warning",
+      title: "Mensen kijken, maar tonen weinig interesse",
+      message:
+        "Je woning wordt gezien, maar overtuigt nog niet genoeg. Verbeter eerst foto’s, titel, omschrijving of vraagprijs voordat je extra marketingbudget inzet.",
+      action: "improve",
+    };
+  }
+
+  if (viewCount >= 10 && leadCount === 0 && engagementRate >= 5) {
+    return {
+      type: "info",
+      title: "Er is interesse, maar nog geen aanvraag",
+      message:
+        "Je woning trekt aandacht. De meest logische volgende stap is meer bereik, zodat meer potentiële kopers je woning zien.",
+      action: "marketing",
+    };
+  }
+
+  if (leadCount > 0 && conversionRate < 1) {
+    return {
+      type: "warning",
+      title: "Je krijgt aanvragen, maar conversie kan beter",
+      message:
+        "Er is marktinteresse, maar de verhouding tussen bezoekers en aanvragen kan beter. Controleer of prijs, foto’s en presentatie goed aansluiten.",
+      action: "improve",
+    };
+  }
+
+  return {
+    type: "success",
+    title: "Sterke prestaties",
+    message:
+      "Je woning trekt aandacht en levert aanvragen op. Blijf delen en overweeg extra bereik om het verkoopmoment te versnellen.",
+    action: "scale",
+  };
 }
 
 export default async function MarketingDashboardPage({ params }: PageProps) {
@@ -79,6 +146,13 @@ export default async function MarketingDashboardPage({ params }: PageProps) {
 
   const engagementRate =
     viewCount > 0 ? Math.min(100, (favoriteCount / viewCount) * 100) : 0;
+
+  const insights = getMarketingInsights({
+    viewCount,
+    leadCount,
+    engagementRate,
+    conversionRate,
+  });
 
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.huisdirect.nl";
@@ -198,41 +272,17 @@ export default async function MarketingDashboardPage({ params }: PageProps) {
           })}
         </div>
 
-        <div className="mt-6 rounded-[28px] border border-neutral-200 bg-white p-5 text-center text-sm font-medium text-neutral-700 shadow-[0_16px_50px_rgba(0,0,0,0.04)]">
-          {viewCount < 10 && (
-            <span>
-              Je woning wordt nog weinig bekeken. Deel hem vandaag in je
-              WhatsApp, familie-, werk-, buurt- en sportgroepen.
-            </span>
-          )}
-
-          {viewCount >= 10 && leadCount === 0 && engagementRate < 5 && (
-            <span>
-              Mensen kijken wel, maar tonen weinig interesse. Overweeg betere
-              foto’s of een scherpere prijs.
-            </span>
-          )}
-
-          {viewCount >= 10 && leadCount === 0 && engagementRate >= 5 && (
-            <span>
-              Je woning wordt goed bekeken en mensen tonen interesse. Vergroot
-              je bereik om bezichtigingen te krijgen.
-            </span>
-          )}
-
-          {leadCount > 0 && conversionRate < 1 && (
-            <span>
-              Je krijgt al aanvragen, maar de conversie kan beter. Zorg dat je
-              presentatie en prijs goed aansluiten.
-            </span>
-          )}
-
-          {leadCount > 0 && conversionRate >= 1 && (
-            <span className="text-emerald-700">
-              Sterk bezig — je woning trekt aandacht en levert geïnteresseerde
-              kopers op.
-            </span>
-          )}
+        <div
+          className={`mt-6 rounded-[28px] p-5 text-sm shadow-[0_16px_50px_rgba(0,0,0,0.04)] ${
+            insights.type === "success"
+              ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+              : insights.type === "warning"
+              ? "border border-yellow-200 bg-yellow-50 text-yellow-800"
+              : "border border-neutral-200 bg-white text-neutral-700"
+          }`}
+        >
+          <p className="font-semibold">{insights.title}</p>
+          <p className="mt-2 leading-6">{insights.message}</p>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -241,16 +291,16 @@ export default async function MarketingDashboardPage({ params }: PageProps) {
 
             <AIShareGenerator listing={listing} shareUrl={shareUrl} />
 
-<MarketingBudgetSlider
-  listingId={listing.id}
-  shareUrl={shareUrl}
-  initialBudget={listing.marketing_budget}
-  listing={listing}
-  viewCount={viewCount}
-  engagementRate={engagementRate}
-  leadCount={leadCount}
-  conversionRate={conversionRate}
-/>
+            <MarketingBudgetSlider
+              listingId={listing.id}
+              shareUrl={shareUrl}
+              initialBudget={listing.marketing_budget}
+              listing={listing}
+              viewCount={viewCount}
+              engagementRate={engagementRate}
+              leadCount={leadCount}
+              conversionRate={conversionRate}
+            />
           </div>
 
           <div className="space-y-6">

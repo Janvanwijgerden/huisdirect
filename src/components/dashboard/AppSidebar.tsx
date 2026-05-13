@@ -47,6 +47,11 @@ export default function AppSidebar({
       icon: List,
       count: listingCount > 0 ? listingCount : undefined,
     },
+{
+  label: "Marketing",
+  href: "/dashboard/marketing",
+  icon: BarChart3,
+},
     {
       href: "/dashboard/settings",
       label: "Instellingen",
