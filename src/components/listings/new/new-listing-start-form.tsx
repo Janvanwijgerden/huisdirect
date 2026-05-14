@@ -8,6 +8,10 @@ import {
   MapPin,
   Sparkles,
 } from "lucide-react";
+import {
+  formatEuroRounded,
+  formatSavingsRange,
+} from "../../../lib/valuation/valuation-display";
 
 declare global {
   interface Window {
@@ -1033,46 +1037,55 @@ if (window.google?.maps?.importLibrary) {
               </div>
             </div>
 
-            {bagData?.estimatedValueMid ? (
-              <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/60 p-4 sm:p-5">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
-                    <Euro className="h-5 w-5" />
-                  </div>
+{bagData?.estimatedValueMid ? (
+  <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/60 p-4 sm:p-5">
+    <div className="flex items-start gap-3">
+      <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+        <Euro className="h-5 w-5" />
+      </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
-                      Geschatte woningwaarde
-                    </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
+          Geschatte woningwaarde
+        </div>
 
-                    <div className="mt-2 text-2xl font-semibold text-neutral-950">
-                      {formatPrice(bagData.estimatedValueMid)}
-                    </div>
+        <div className="mt-2 text-2xl font-semibold text-neutral-950">
+          {formatEuroRounded(bagData.estimatedValueMid)}
+        </div>
 
-                    <div className="mt-2 text-sm text-neutral-700">
-                      Verwachte range:{" "}
-                      <span className="font-medium">
-                        {formatPrice(bagData.estimatedValueLow)} –{" "}
-                        {formatPrice(bagData.estimatedValueHigh)}
-                      </span>
-                    </div>
+        <div className="mt-2 text-sm text-neutral-700">
+          Verwachte range:{" "}
+          <span className="font-medium">
+            {formatEuroRounded(bagData.estimatedValueLow)} –{" "}
+            {formatEuroRounded(bagData.estimatedValueHigh)}
+          </span>
+        </div>
 
-                    <div className="mt-2 text-sm text-neutral-600">
-                      WOZ-indicatie:{" "}
-                      <span className="font-medium">
-                        {formatPrice(bagData.wozWaarde)}
-                      </span>
-                    </div>
+        {bagData.wozWaarde ? (
+          <div className="mt-2 text-sm text-neutral-600">
+            WOZ-indicatie:{" "}
+            <span className="font-medium">
+              {formatEuroRounded(bagData.wozWaarde)}
+            </span>
+          </div>
+        ) : null}
 
-                    <div className="mt-2 text-sm text-neutral-500">
-                      Eerste indicatie op basis van adres, woningtype en
-                      woonoppervlakte.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+        <div className="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-sm text-neutral-700">
+          <span className="font-semibold text-emerald-700">
+            Verwachte besparing via HuisDirect:
+          </span>{" "}
+          {formatSavingsRange(bagData.estimatedValueMid)}
+        </div>
 
+        <div className="mt-3 text-sm text-neutral-500">
+          Eerste indicatie op basis van adres, BAG-data, WOZ en
+          woningkenmerken. Tijdens het invullen verfijnen we deze schatting
+          automatisch.
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
             <div className="flex flex-col gap-4 rounded-[28px] border border-neutral-200 bg-neutral-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="text-sm font-medium text-neutral-900">

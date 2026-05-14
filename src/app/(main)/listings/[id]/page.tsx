@@ -780,12 +780,7 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
 
             <SocialProofCard listingId={listing.id} />
 
-            <ListingHighlights
-              propertyType={formatPropertyType(listing.property_type)}
-              yearBuilt={listing.year_built || 0}
-              energyLabel={listing.energy_label || "-"}
-              plotSize={listing.plot_size || 0}
-            />
+            <ListingHighlights listing={listing} />
 
             <ListingFeatureGroups groups={featureGroups} />
 

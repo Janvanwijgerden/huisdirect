@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { lookupParcelByRdCoordinates } from "../../../lib/cadastre/parcel-lookup";
 
 type BagLink = {
   href?: string;
@@ -311,12 +312,34 @@ export async function GET(req: Request) {
     const objectData = objectByIdJson?.verblijfsobject || null;
     const pandData = pandByIdJson?.pand || null;
 
-    const livingArea = normalizeNumber(objectData?.oppervlakte) || null;
-    const yearBuilt = normalizeNumber(pandData?.oorspronkelijkBouwjaar) || null;
-    const plotSize = normalizeNumber(pandData?.oppervlakte) || null;
-    const propertyType = normalizePropertyType(objectData?.gebruiksdoelen || null);
+const livingArea = normalizeNumber(objectData?.oppervlakte) || null;
+const yearBuilt = normalizeNumber(pandData?.oorspronkelijkBouwjaar) || null;
+const propertyType = normalizePropertyType(objectData?.gebruiksdoelen || null);
 
-    const valuation =
+const coordinates = objectData?.geometrie?.coordinates as
+  | [number, number]
+  | undefined;
+
+const rdX =
+  Array.isArray(coordinates) && typeof coordinates[0] === 'number'
+    ? coordinates[0]
+    : null;
+
+const rdY =
+  Array.isArray(coordinates) && typeof coordinates[1] === 'number'
+    ? coordinates[1]
+    : null;
+
+let plotSize: number | null = null;
+let parcelLookupRaw: unknown = null;
+
+if (rdX !== null && rdY !== null) {
+  const parcelResult = await lookupParcelByRdCoordinates(rdX, rdY);
+  plotSize = parcelResult.plotSize;
+  parcelLookupRaw = parcelResult.raw;
+}
+
+const valuation =
       livingArea && propertyType
         ? buildSimpleValuation({
             livingArea,
@@ -361,8 +384,9 @@ export async function GET(req: Request) {
         valuationPricePerM2: valuation.valuationPricePerM2,
         valuationConfidence: valuation.valuationConfidence,
         valuationSource: valuation.valuationSource,
-        valuationModelVersion: valuation.valuationModelVersion,
-      },
+valuationModelVersion: valuation.valuationModelVersion,
+parcel_lookup_raw:
+  process.env.NODE_ENV === 'development' ? parcelLookupRaw : undefined,      },
     });
   } catch (error: any) {
     return NextResponse.json(

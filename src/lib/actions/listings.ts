@@ -4,6 +4,7 @@ import { createClient } from '../supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { sendMetaEvent } from '../meta-server';
+import { calculateHuisDirectValuation } from '../valuation/huisdirect-valuation-v1';
 
 function slugify(text: string): string {
   return text
