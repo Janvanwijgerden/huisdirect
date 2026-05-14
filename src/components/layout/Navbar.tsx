@@ -9,7 +9,6 @@ import TrackButton from "../TrackButton";
 const navLinks = [
   { href: "/listings", label: "Aanbod" },
   { href: "/hoe-het-werkt", label: "Hoe het werkt" },
-  { href: "/voor-verkopers", label: "Voor verkopers" },
   { href: "/over-ons", label: "Over ons" },
   { href: "/contact", label: "Contact" },
 ];

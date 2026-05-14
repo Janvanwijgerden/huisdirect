@@ -500,13 +500,12 @@ export default function HeroCalculator() {
                     Plaats uw woning
                   </TrackButton>
 
-                  <Link
-                    href="/voor-verkopers"
-                    className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 active:scale-[0.98]"
-                  >
-                    Bekijk hoe het werkt
-                  </Link>
-                </div>
+<Link
+  href="/hoe-het-werkt"
+  className="inline-flex items-center justify-center rounded-xl border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+>
+  Bekijk hoe het werkt
+</Link>                </div>
               </div>
             ) : (
               <p className="mt-2 text-sm text-stone-300">
