@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../supabase/server";
+import { generateSaleContractDocx } from "../contracts/generate-sale-contract";
 import type { SaleCase, SaleCondition, SaleTemplateType } from "../../types/database";
+
+const SALE_CONTRACTS_BUCKET = "sale-contracts";
+const SALE_CONTRACT_DOCX_TYPE = "koopovereenkomst_docx";
+const DOCX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function getTemplateType(propertyType?: string | null): SaleTemplateType {
   const value = (propertyType || "").toLowerCase();
@@ -40,6 +46,10 @@ function dateOrNull(value: FormDataEntryValue | null) {
 
 function booleanFromForm(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";
+}
+
+function sanitizeStorageFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
 export async function getOrCreateSaleCase(listingId: string): Promise<{
@@ -303,4 +313,119 @@ export async function saveSaleCaseForm(formData: FormData): Promise<void> {
 export async function openSaleCase(listingId: string): Promise<void> {
   await getOrCreateSaleCase(listingId);
   redirect(`/dashboard/verkoopdossier/${listingId}`);
+}
+
+export async function generateSaleContract(
+  saleCaseId: string
+): Promise<{ publicUrl: string; version: number }> {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Niet ingelogd.");
+  }
+
+  const { data: saleCase, error: saleCaseError } = await supabase
+    .from("sale_cases")
+    .select("id, listing_id, seller_user_id")
+    .eq("id", saleCaseId)
+    .eq("seller_user_id", user.id)
+    .single();
+
+  if (saleCaseError || !saleCase) {
+    throw new Error("Verkoopdossier niet gevonden of geen toegang.");
+  }
+
+  const { data: latestDocument, error: latestDocumentError } = await supabase
+    .from("sale_documents")
+    .select("version")
+    .eq("sale_case_id", saleCase.id)
+    .eq("document_type", SALE_CONTRACT_DOCX_TYPE)
+    .order("version", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestDocumentError) {
+    throw new Error(
+      `Laatste documentversie ophalen mislukt: ${latestDocumentError.message}`
+    );
+  }
+
+  const nextVersion = (latestDocument?.version ?? 0) + 1;
+  const generatedContract = await generateSaleContractDocx(saleCase.id);
+  const storageFileName = sanitizeStorageFileName(generatedContract.fileName);
+  const storagePath = `${user.id}/${saleCase.id}/v${nextVersion}-${Date.now()}-${storageFileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(SALE_CONTRACTS_BUCKET)
+    .upload(storagePath, generatedContract.buffer, {
+      contentType: DOCX_CONTENT_TYPE,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(`Koopovereenkomst uploaden mislukt: ${uploadError.message}`);
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from(SALE_CONTRACTS_BUCKET)
+    .getPublicUrl(storagePath);
+
+  const publicUrl = publicUrlData.publicUrl;
+
+  const { error: documentInsertError } = await supabase
+    .from("sale_documents")
+    .insert({
+      sale_case_id: saleCase.id,
+      document_type: SALE_CONTRACT_DOCX_TYPE,
+      version: nextVersion,
+      storage_bucket: SALE_CONTRACTS_BUCKET,
+      storage_path: storagePath,
+      public_url: publicUrl,
+      generated_by: user.id,
+    });
+
+  if (documentInsertError) {
+    await supabase.storage.from(SALE_CONTRACTS_BUCKET).remove([storagePath]);
+    throw new Error(
+      `Documentmetadata opslaan mislukt: ${documentInsertError.message}`
+    );
+  }
+
+  const { error: saleCaseUpdateError } = await supabase
+    .from("sale_cases")
+    .update({ status: "generated" })
+    .eq("id", saleCase.id)
+    .eq("seller_user_id", user.id);
+
+  if (saleCaseUpdateError) {
+    throw new Error(
+      `Verkoopdossierstatus bijwerken mislukt: ${saleCaseUpdateError.message}`
+    );
+  }
+
+  await supabase.from("sale_activity_log").insert({
+    sale_case_id: saleCase.id,
+    actor_user_id: user.id,
+    action: "sale_contract_generated",
+    metadata: {
+      listing_id: saleCase.listing_id,
+      document_type: SALE_CONTRACT_DOCX_TYPE,
+      version: nextVersion,
+      storage_bucket: SALE_CONTRACTS_BUCKET,
+      storage_path: storagePath,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/verkoopdossier/${saleCase.listing_id}`);
+
+  return {
+    publicUrl,
+    version: nextVersion,
+  };
 }

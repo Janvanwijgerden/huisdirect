@@ -14,6 +14,7 @@ import {
 import { createClient } from "../../../../../lib/supabase/server";
 import { getOrCreateSaleCase } from "../../../../../lib/actions/sale-cases";
 import SaleCaseForm from "../../../../../components/dashboard/SaleCaseForm";
+import SaleContractActions from "../../../../../components/dashboard/SaleContractActions";
 
 
 function formatPrice(value?: number | null) {
@@ -100,6 +101,16 @@ export default async function SaleCasePage({
   }
 
   const { saleCase, saleCondition } = await getOrCreateSaleCase(listingId);
+
+  const { data: latestContractDocument } = await supabase
+    .from("sale_documents")
+    .select("public_url, version, created_at")
+    .eq("sale_case_id", saleCase.id)
+    .eq("document_type", "koopovereenkomst_docx")
+    .order("version", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   return (
     <main className="min-h-screen bg-neutral-50">
@@ -313,26 +324,18 @@ export default async function SaleCasePage({
                 </div>
 
                 <h2 className="mt-4 text-lg font-semibold text-neutral-950">
-                  Volgende stap
+                  Koopovereenkomst
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-neutral-600">
-                  We bouwen hierna het formulier waarmee je kopergegevens,
-                  leveringsdatum, notaris en voorwaarden rustig stap voor stap
-                  invult.
+                  Genereer een DOCX op basis van de ingevulde kopergegevens,
+                  afspraken, voorwaarden en woninginformatie.
                 </p>
 
-                <button
-                  type="button"
-                  disabled
-                  className="mt-5 inline-flex h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-neutral-200 px-5 text-sm font-semibold text-neutral-500"
-                >
-                  Koopovereenkomst genereren
-                </button>
-
-                <p className="mt-3 text-xs leading-5 text-neutral-500">
-                  Deze knop wordt actief zodra alle verplichte gegevens compleet zijn.
-                </p>
+                <SaleContractActions
+                  saleCaseId={saleCase.id}
+                  latestDocument={latestContractDocument}
+                />
               </div>
 
               <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
