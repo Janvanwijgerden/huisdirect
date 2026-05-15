@@ -38,6 +38,14 @@ type BagVerblijfsobjectWrapped = {
     geometrie?: {
       type?: string;
       coordinates?: unknown;
+      punt?: {
+        type?: string;
+        coordinates?: unknown;
+      };
+      vlak?: {
+        type?: string;
+        coordinates?: unknown;
+      };
     };
     _links?: {
       self?: BagLink;
@@ -56,6 +64,14 @@ type BagPandWrapped = {
     geometrie?: {
       type?: string;
       coordinates?: unknown;
+      punt?: {
+        type?: string;
+        coordinates?: unknown;
+      };
+      vlak?: {
+        type?: string;
+        coordinates?: unknown;
+      };
     };
     _links?: {
       self?: BagLink;
@@ -316,9 +332,17 @@ const livingArea = normalizeNumber(objectData?.oppervlakte) || null;
 const yearBuilt = normalizeNumber(pandData?.oorspronkelijkBouwjaar) || null;
 const propertyType = normalizePropertyType(objectData?.gebruiksdoelen || null);
 
-const coordinates = objectData?.geometrie?.coordinates as
-  | [number, number]
-  | undefined;
+const geom = objectData?.geometrie as any;
+let coordinates = geom?.punt?.coordinates || geom?.coordinates;
+
+if (!coordinates && Array.isArray(geom?.vlak?.coordinates)) {
+  const polygon = geom.vlak.coordinates;
+  if (Array.isArray(polygon[0]) && Array.isArray(polygon[0][0])) {
+    coordinates = polygon[0][0];
+  } else if (Array.isArray(polygon[0])) {
+    coordinates = polygon[0];
+  }
+}
 
 const rdX =
   Array.isArray(coordinates) && typeof coordinates[0] === 'number'
@@ -384,9 +408,8 @@ const valuation =
         valuationPricePerM2: valuation.valuationPricePerM2,
         valuationConfidence: valuation.valuationConfidence,
         valuationSource: valuation.valuationSource,
-valuationModelVersion: valuation.valuationModelVersion,
-parcel_lookup_raw:
-  process.env.NODE_ENV === 'development' ? parcelLookupRaw : undefined,      },
+        valuationModelVersion: valuation.valuationModelVersion,
+     },
     });
   } catch (error: any) {
     return NextResponse.json(

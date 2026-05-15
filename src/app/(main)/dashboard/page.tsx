@@ -171,7 +171,6 @@ export default async function DashboardPage({
         <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
           <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:rounded-[32px]">
             <div className="grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_360px]">
-              <ListingStats listingId={listing.id} />
               
               <div className="p-5 sm:p-8 lg:p-10">
                 <div className="flex flex-wrap items-center gap-3">
@@ -358,6 +357,42 @@ export default async function DashboardPage({
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_380px] xl:gap-8">
           <aside className="order-1 space-y-4 sm:space-y-6 xl:order-2">
+
+{(listing.status === "active" ||
+  listing.status === "pending" ||
+  listing.status === "sold") && (
+  <div className="rounded-[28px] border border-emerald-200 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.04)] sm:rounded-[32px] sm:p-6">
+    <div className="flex items-start gap-3">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
+        <FileText className="h-5 w-5 text-emerald-600" />
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+          Nieuw
+        </p>
+
+        <h3 className="mt-2 text-lg font-semibold tracking-tight text-neutral-950">
+          Automatische koopovereenkomst
+        </h3>
+
+        <p className="mt-2 text-sm leading-7 text-neutral-600">
+          Maak straks automatisch een professioneel verkoopdossier en concept
+          koopovereenkomst op basis van jouw woning, koper en verkoopafspraken.
+        </p>
+
+        <Link
+          href={`/dashboard/verkoopdossier/${listing.id}`}
+          className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+        >
+          Verkoopdossier openen
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  </div>
+)}
+
             {nextStep && (
               <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/70 p-5 sm:rounded-[32px] sm:p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
