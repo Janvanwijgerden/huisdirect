@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../supabase/server";
 import { generateSaleContractDocx } from "../contracts/generate-sale-contract";
-import type { SaleCase, SaleCondition, SaleTemplateType } from "../../types/database";
+import type {
+  SaleCase,
+  SaleCondition,
+  SaleSeller,
+  SaleTemplateType,
+  TransferCostsPaidBy,
+} from "../../types/database";
 
 const SALE_CONTRACTS_BUCKET = "sale-contracts";
 const SALE_CONTRACT_DOCX_TYPE = "koopovereenkomst_docx";
@@ -46,6 +52,74 @@ function dateOrNull(value: FormDataEntryValue | null) {
 
 function booleanFromForm(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";
+}
+
+function transferCostsPaidByFromForm(
+  value: FormDataEntryValue | null
+): TransferCostsPaidBy {
+  const text = String(value || "").trim();
+
+  if (text === "seller" || text === "custom") {
+    return text;
+  }
+
+  return "buyer";
+}
+
+function hasSellerFormData(formData: FormData, prefix: "seller_1" | "seller_2") {
+  return [
+    "first_name",
+    "last_name",
+    "initials",
+    "birth_place",
+    "birth_date",
+    "street",
+    "house_number",
+    "postal_code",
+    "city",
+    "email",
+    "phone",
+    "marital_status",
+    "matrimonial_property_regime",
+    "identification_type",
+    "identification_number",
+  ].some((field) => stringOrNull(formData.get(`${prefix}_${field}`)));
+}
+
+function buildSellerPayload(
+  formData: FormData,
+  saleCaseId: string,
+  sellerOrder: 1 | 2
+): Omit<SaleSeller, "id" | "created_at" | "updated_at"> {
+  const prefix = `seller_${sellerOrder}`;
+
+  return {
+    sale_case_id: saleCaseId,
+    seller_order: sellerOrder,
+    first_name: stringOrNull(formData.get(`${prefix}_first_name`)),
+    last_name: stringOrNull(formData.get(`${prefix}_last_name`)),
+    initials: stringOrNull(formData.get(`${prefix}_initials`)),
+    birth_place: stringOrNull(formData.get(`${prefix}_birth_place`)),
+    birth_date: dateOrNull(formData.get(`${prefix}_birth_date`)),
+    street: stringOrNull(formData.get(`${prefix}_street`)),
+    house_number: stringOrNull(formData.get(`${prefix}_house_number`)),
+    postal_code: stringOrNull(formData.get(`${prefix}_postal_code`)),
+    city: stringOrNull(formData.get(`${prefix}_city`)),
+    email: stringOrNull(formData.get(`${prefix}_email`)),
+    phone: stringOrNull(formData.get(`${prefix}_phone`)),
+    marital_status: stringOrNull(formData.get(`${prefix}_marital_status`)) as
+      | SaleSeller["marital_status"]
+      | null,
+    matrimonial_property_regime: stringOrNull(
+      formData.get(`${prefix}_matrimonial_property_regime`)
+    ) as SaleSeller["matrimonial_property_regime"] | null,
+    identification_type: stringOrNull(
+      formData.get(`${prefix}_identification_type`)
+    ),
+    identification_number: stringOrNull(
+      formData.get(`${prefix}_identification_number`)
+    ),
+  };
 }
 
 function sanitizeStorageFileName(fileName: string) {
@@ -116,6 +190,7 @@ export async function getOrCreateSaleCase(listingId: string): Promise<{
       template_type: templateType,
       agreed_price: listing.asking_price ?? null,
       movable_goods_value: 0,
+      transfer_costs_paid_by: "buyer",
     })
     .select("*")
     .single();
@@ -206,6 +281,9 @@ export async function saveSaleCaseForm(formData: FormData): Promise<void> {
     .update({
       agreed_price: agreedPrice,
       movable_goods_value: movableGoodsValue ?? 0,
+      transfer_costs_paid_by: transferCostsPaidByFromForm(
+        formData.get("transfer_costs_paid_by")
+      ),
       acceptance_date: dateOrNull(formData.get("acceptance_date")),
       transfer_date: dateOrNull(formData.get("transfer_date")),
       notary_office_name: stringOrNull(formData.get("notary_office_name")),
@@ -258,6 +336,33 @@ export async function saveSaleCaseForm(formData: FormData): Promise<void> {
     throw new Error(
       `Ontbindende voorwaarden opslaan mislukt: ${updateConditionsError.message}`
     );
+  }
+
+  const sellerCount =
+    stringOrNull(formData.get("seller_count")) === "two" ? "two" : "one";
+
+  if (hasSellerFormData(formData, "seller_1")) {
+    const { error: sellerOneError } = await supabase
+      .from("sale_sellers")
+      .upsert(buildSellerPayload(formData, saleCaseId, 1), {
+        onConflict: "sale_case_id,seller_order",
+      });
+
+    if (sellerOneError) {
+      throw new Error(`Verkoper 1 opslaan mislukt: ${sellerOneError.message}`);
+    }
+  }
+
+  if (sellerCount === "two" && hasSellerFormData(formData, "seller_2")) {
+    const { error: sellerTwoError } = await supabase
+      .from("sale_sellers")
+      .upsert(buildSellerPayload(formData, saleCaseId, 2), {
+        onConflict: "sale_case_id,seller_order",
+      });
+
+    if (sellerTwoError) {
+      throw new Error(`Verkoper 2 opslaan mislukt: ${sellerTwoError.message}`);
+    }
   }
 
   await supabase.from("sale_buyers").delete().eq("sale_case_id", saleCaseId);

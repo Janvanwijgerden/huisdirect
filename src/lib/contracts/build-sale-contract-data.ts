@@ -1,4 +1,10 @@
-import type { SaleBuyer, SaleCase, SaleCondition } from "../../types/database";
+import type {
+  SaleBuyer,
+  SaleCase,
+  SaleCondition,
+  SaleSeller,
+  TransferCostsPaidBy,
+} from "../../types/database";
 
 type ListingForContract = {
   id: string;
@@ -74,11 +80,38 @@ function buildBuyerAddress(buyer?: SaleBuyer | null) {
   return `${streetLine}, ${cityLine}`;
 }
 
+function buildSellerName(seller?: SaleSeller | null) {
+  if (!seller) return "........................";
+
+  const name = `${seller.first_name || ""} ${seller.last_name || ""}`.trim();
+  return name || "........................";
+}
+
+function buildSellerAddress(seller?: SaleSeller | null) {
+  if (!seller) return "........................";
+
+  const streetLine = `${seller.street || ""} ${seller.house_number || ""}`.trim();
+  const cityLine = `${seller.postal_code || ""} ${seller.city || ""}`.trim();
+
+  if (!streetLine && !cityLine) return "........................";
+  if (!cityLine) return streetLine;
+  if (!streetLine) return cityLine;
+
+  return `${streetLine}, ${cityLine}`;
+}
+
+function transferCostsText(value?: TransferCostsPaidBy | null) {
+  if (value === "seller") return "kosten voor rekening van verkoper";
+  if (value === "custom") return "afwijkende afspraak";
+  return "kosten voor rekening van koper";
+}
+
 export function buildSaleContractData({
   listing,
   saleCase,
   saleCondition,
   buyers,
+  sellers,
   sellerName,
   sellerEmail,
 }: {
@@ -86,10 +119,13 @@ export function buildSaleContractData({
   saleCase: SaleCase;
   saleCondition: SaleCondition | null;
   buyers: SaleBuyer[];
+  sellers?: SaleSeller[];
   sellerName?: string | null;
   sellerEmail?: string | null;
 }) {
   const primaryBuyer = buyers[0] || null;
+  const primarySeller = sellers?.[0] || null;
+  const secondarySeller = sellers?.[1] || null;
 
   return {
     // Algemeen
@@ -117,6 +153,53 @@ export function buildSaleContractData({
     // Verkoper
     seller_name: valueOrDots(sellerName),
     seller_email: valueOrDots(sellerEmail),
+    seller_1_name: primarySeller
+      ? buildSellerName(primarySeller)
+      : valueOrDots(sellerName),
+    seller_1_first_name: valueOrDots(primarySeller?.first_name),
+    seller_1_last_name: valueOrDots(primarySeller?.last_name),
+    seller_1_initials: valueOrDots(primarySeller?.initials),
+    seller_1_birth_place: valueOrDots(primarySeller?.birth_place),
+    seller_1_birth_date: formatDate(primarySeller?.birth_date),
+    seller_1_address: buildSellerAddress(primarySeller),
+    seller_1_street: valueOrDots(primarySeller?.street),
+    seller_1_house_number: valueOrDots(primarySeller?.house_number),
+    seller_1_postal_code: valueOrDots(primarySeller?.postal_code),
+    seller_1_city: valueOrDots(primarySeller?.city),
+    seller_1_email: valueOrDots(primarySeller?.email ?? sellerEmail),
+    seller_1_phone: valueOrDots(primarySeller?.phone),
+    seller_1_marital_status: valueOrDots(primarySeller?.marital_status),
+    seller_1_matrimonial_property_regime: valueOrDots(
+      primarySeller?.matrimonial_property_regime
+    ),
+    seller_1_identification_type: valueOrDots(primarySeller?.identification_type),
+    seller_1_identification_number: valueOrDots(
+      primarySeller?.identification_number
+    ),
+
+    seller_2_name: buildSellerName(secondarySeller),
+    seller_2_first_name: valueOrDots(secondarySeller?.first_name),
+    seller_2_last_name: valueOrDots(secondarySeller?.last_name),
+    seller_2_initials: valueOrDots(secondarySeller?.initials),
+    seller_2_birth_place: valueOrDots(secondarySeller?.birth_place),
+    seller_2_birth_date: formatDate(secondarySeller?.birth_date),
+    seller_2_address: buildSellerAddress(secondarySeller),
+    seller_2_street: valueOrDots(secondarySeller?.street),
+    seller_2_house_number: valueOrDots(secondarySeller?.house_number),
+    seller_2_postal_code: valueOrDots(secondarySeller?.postal_code),
+    seller_2_city: valueOrDots(secondarySeller?.city),
+    seller_2_email: valueOrDots(secondarySeller?.email),
+    seller_2_phone: valueOrDots(secondarySeller?.phone),
+    seller_2_marital_status: valueOrDots(secondarySeller?.marital_status),
+    seller_2_matrimonial_property_regime: valueOrDots(
+      secondarySeller?.matrimonial_property_regime
+    ),
+    seller_2_identification_type: valueOrDots(
+      secondarySeller?.identification_type
+    ),
+    seller_2_identification_number: valueOrDots(
+      secondarySeller?.identification_number
+    ),
 
     // Koper 1
     buyer_1_name: buildBuyerName(primaryBuyer),
@@ -143,6 +226,7 @@ export function buildSaleContractData({
     asking_price: formatPrice(listing.asking_price),
     agreed_price: formatPrice(saleCase.agreed_price),
     movable_goods_value: formatPrice(saleCase.movable_goods_value),
+    transfer_costs_paid_by: transferCostsText(saleCase.transfer_costs_paid_by),
     acceptance_date: formatDate(saleCase.acceptance_date),
     transfer_date: formatDate(saleCase.transfer_date),
 

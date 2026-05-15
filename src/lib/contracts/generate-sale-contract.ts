@@ -103,6 +103,16 @@ export async function generateSaleContractDocx(
     throw new Error(`Kopergegevens ophalen mislukt: ${buyersError.message}`);
   }
 
+  const { data: sellers, error: sellersError } = await supabase
+    .from("sale_sellers")
+    .select("*")
+    .eq("sale_case_id", saleCase.id)
+    .order("seller_order", { ascending: true });
+
+  if (sellersError) {
+    throw new Error(`Verkopergegevens ophalen mislukt: ${sellersError.message}`);
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name")
@@ -131,6 +141,7 @@ export async function generateSaleContractDocx(
     saleCase,
     saleCondition,
     buyers: buyers ?? [],
+    sellers: sellers ?? [],
     sellerName: profile?.full_name ?? user.email ?? null,
     sellerEmail: user.email ?? null,
   });

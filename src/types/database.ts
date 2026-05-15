@@ -76,6 +76,7 @@ export type SaleCaseStatus =
   | "cancelled";
 
 export type SaleTemplateType = "woning" | "appartement";
+export type TransferCostsPaidBy = "buyer" | "seller" | "custom";
 
 export type SaleCase = {
   id: string;
@@ -85,6 +86,7 @@ export type SaleCase = {
   template_type: SaleTemplateType;
   agreed_price: number | null;
   movable_goods_value: number | null;
+  transfer_costs_paid_by: TransferCostsPaidBy;
   transfer_date: string | null;
   acceptance_date: string | null;
   notary_office_name: string | null;
@@ -92,6 +94,40 @@ export type SaleCase = {
   notary_email: string | null;
   notary_phone: string | null;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaleSeller = {
+  id: string;
+  sale_case_id: string;
+  seller_order: number;
+  first_name: string | null;
+  last_name: string | null;
+  initials: string | null;
+  birth_place: string | null;
+  birth_date: string | null;
+  street: string | null;
+  house_number: string | null;
+  postal_code: string | null;
+  city: string | null;
+  email: string | null;
+  phone: string | null;
+  marital_status:
+    | "ongehuwd"
+    | "gehuwd"
+    | "geregistreerd_partnerschap"
+    | "gescheiden"
+    | "weduwe_weduwnaar"
+    | null;
+  matrimonial_property_regime:
+    | "gemeenschap_van_goederen"
+    | "beperkte_gemeenschap_van_goederen"
+    | "huwelijkse_voorwaarden"
+    | "niet_van_toepassing"
+    | null;
+  identification_type: string | null;
+  identification_number: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -241,6 +277,15 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Omit<SaleBuyer, "id" | "created_at" | "updated_at">>;
+      };
+      sale_sellers: {
+        Row: SaleSeller;
+        Insert: Omit<SaleSeller, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<SaleSeller, "id" | "created_at" | "updated_at">>;
       };
       sale_conditions: {
         Row: SaleCondition;

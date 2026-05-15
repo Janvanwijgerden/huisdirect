@@ -1,5 +1,12 @@
 import { saveSaleCaseForm } from "../../lib/actions/sale-cases";
-import type { SaleBuyer, SaleCase, SaleCondition } from "../../types/database";
+import type {
+  SaleBuyer,
+  SaleCase,
+  SaleCondition,
+  SaleSeller,
+} from "../../types/database";
+import SaleSellerFields from "./SaleSellerFields";
+import HuisSelect from "../ui/HuisSelect";
 
 function formatDateForInput(value?: string | null) {
   if (!value) return "";
@@ -131,16 +138,35 @@ export default function SaleCaseForm({
   saleCase,
   saleCondition,
   buyer,
+  sellers,
 }: {
   listingId: string;
   saleCase: SaleCase;
   saleCondition: SaleCondition | null;
   buyer?: SaleBuyer | null;
+  sellers?: SaleSeller[];
 }) {
   return (
     <form action={saveSaleCaseForm} className="space-y-6">
       <input type="hidden" name="listing_id" value={listingId} />
       <input type="hidden" name="sale_case_id" value={saleCase.id} />
+
+      <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+            Stap 0
+          </p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-neutral-950">
+            Verkopergegevens
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">
+            Leg vast namens welke verkoper of verkopers de koopovereenkomst
+            wordt opgesteld.
+          </p>
+        </div>
+
+        <SaleSellerFields sellers={sellers ?? []} />
+      </section>
 
       <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
         <div>
@@ -310,6 +336,17 @@ export default function SaleCaseForm({
             label="Leveringsdatum"
             type="date"
             defaultValue={formatDateForInput(saleCase.transfer_date)}
+          />
+          <HuisSelect
+            name="transfer_costs_paid_by"
+            label="Kosten overdracht"
+            defaultValue={saleCase.transfer_costs_paid_by ?? "buyer"}
+            options={[
+              { value: "buyer", label: "Kosten koper" },
+              { value: "seller", label: "Vrij op naam" },
+              { value: "custom", label: "Afwijkende afspraak" },
+            ]}
+            helperText="Bij bestaande woningen is 'kosten koper' gebruikelijk. Dan betaalt koper onder andere overdrachtsbelasting, notariskosten en kadasterkosten."
           />
         </div>
       </section>

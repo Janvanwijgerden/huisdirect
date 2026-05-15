@@ -112,6 +112,12 @@ export default async function SaleCasePage({
     .limit(1)
     .maybeSingle();
 
+  const { data: sellers } = await supabase
+    .from("sale_sellers")
+    .select("*")
+    .eq("sale_case_id", saleCase.id)
+    .order("seller_order", { ascending: true });
+
   return (
     <main className="min-h-screen bg-neutral-50">
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
@@ -173,6 +179,7 @@ export default async function SaleCasePage({
       saleCase={saleCase}
       saleCondition={saleCondition}
       buyer={null}
+      sellers={sellers ?? []}
     />
                   <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex items-start gap-4">
