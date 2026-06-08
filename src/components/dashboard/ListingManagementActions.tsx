@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ChevronRight, FileText, Pencil } from "lucide-react";
 import {
   deleteListing,
   markListingAsSold,
@@ -9,14 +11,57 @@ import {
 type ListingManagementActionsProps = {
   listingId: string;
   isLive: boolean;
+  isRejected?: boolean;
+  canGenerateContract?: boolean;
+  publicPath: string;
 };
 
 export default function ListingManagementActions({
   listingId,
   isLive,
+  isRejected = false,
+  canGenerateContract = true,
+  publicPath,
 }: ListingManagementActionsProps) {
   return (
-    <div className="mt-3 grid grid-cols-1 gap-3">
+    <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Link
+        href={`/listings/${listingId}/edit`}
+        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus:ring-4 focus:ring-neutral-100"
+      >
+        <Pencil className="h-4 w-4" />
+        Bewerken
+      </Link>
+
+      {isLive ? (
+        <Link
+          href={publicPath}
+          target="_blank"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-medium text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus:ring-4 focus:ring-neutral-100"
+        >
+          Bekijk advertentie
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      ) : (
+        <Link
+          href={`/listings/${listingId}/edit`}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-medium text-neutral-900 transition hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus:ring-4 focus:ring-neutral-100"
+        >
+          {isRejected ? "Pas aan" : "Compleet maken"}
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      )}
+
+      {canGenerateContract ? (
+        <Link
+          href={`/dashboard/verkoopdossier/${listingId}`}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-center text-sm font-medium text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+        >
+          <FileText className="h-4 w-4" />
+          Genereer koopovereenkomst
+        </Link>
+      ) : null}
+
       {isLive && (
         <>
           <form
@@ -33,7 +78,7 @@ export default function ListingManagementActions({
           >
             <button
               type="submit"
-              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100"
+              className="min-h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-emerald-100"
             >
               Markeer als verkocht
             </button>
@@ -53,7 +98,7 @@ export default function ListingManagementActions({
           >
             <button
               type="submit"
-              className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+              className="min-h-12 w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-100"
             >
               Woning offline halen
             </button>
@@ -75,7 +120,7 @@ export default function ListingManagementActions({
       >
         <button
           type="submit"
-          className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100"
+          className="min-h-12 w-full rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-100"
         >
           Woning verwijderen
         </button>

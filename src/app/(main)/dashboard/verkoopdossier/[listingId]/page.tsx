@@ -72,7 +72,7 @@ export default async function SaleCasePage({
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      "id, title, street, house_number, postal_code, city, asking_price, property_type, living_area, plot_size, year_built, status"
+      "id, title, street, house_number, postal_code, city, asking_price, property_type, living_area, plot_size, year_built, status, features"
     )
     .eq("id", listingId)
     .eq("user_id", user.id)
@@ -118,9 +118,22 @@ export default async function SaleCasePage({
     .eq("sale_case_id", saleCase.id)
     .order("seller_order", { ascending: true });
 
+  const { data: buyers } = await supabase
+    .from("sale_buyers")
+    .select("*")
+    .eq("sale_case_id", saleCase.id)
+    .order("buyer_order", { ascending: true });
+
+  const { data: movableItems } = await supabase
+    .from("sale_movable_items")
+    .select("*")
+    .eq("sale_case_id", saleCase.id)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+
   return (
-    <main className="min-h-screen bg-neutral-50">
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-neutral-50">
+      <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
         <div className="mb-5">
           <Link
             href="/dashboard"
@@ -131,7 +144,7 @@ export default async function SaleCasePage({
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+        <div className="w-full max-w-full min-w-0 overflow-hidden rounded-[28px] border border-neutral-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:rounded-[32px]">
           <div className="border-b border-neutral-200 bg-gradient-to-br from-emerald-50 via-white to-neutral-50 p-6 sm:p-8 lg:p-10">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div>
@@ -172,18 +185,20 @@ export default async function SaleCasePage({
             </div>
           </div>
 
-<div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-8">
-  <div className="space-y-6">
+          <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-6 p-4 sm:p-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-8">
+            <div className="w-full max-w-full min-w-0 space-y-6">
     <SaleCaseForm
       listingId={listingId}
+      listing={listing}
       saleCase={saleCase}
       saleCondition={saleCondition}
-      buyer={null}
+      buyers={buyers ?? []}
       sellers={sellers ?? []}
+      movableItems={movableItems ?? []}
     />
-                  <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+                  <section className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 sm:h-12 sm:w-12">
                     <Home className="h-5 w-5 text-emerald-600" />
                   </div>
 
@@ -191,11 +206,11 @@ export default async function SaleCasePage({
                     <h2 className="text-lg font-semibold text-neutral-950">
                       Woninggegevens
                     </h2>
-                    <p className="mt-1 text-sm leading-6 text-neutral-600">
+                    <p className="mt-1 text-sm leading-5 text-neutral-600 sm:leading-6">
                       Deze gegevens komen automatisch uit je woningadvertentie.
                     </p>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:mt-5 sm:gap-3 md:grid-cols-2">
                       <InfoItem label="Titel" value={listing.title || "Nog niet ingevuld"} />
                       <InfoItem
                         label="Adres"
@@ -222,9 +237,9 @@ export default async function SaleCasePage({
                 </div>
               </section>
 
-              <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+              <section className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 sm:h-12 sm:w-12">
                     <Euro className="h-5 w-5 text-emerald-600" />
                   </div>
 
@@ -232,11 +247,11 @@ export default async function SaleCasePage({
                     <h2 className="text-lg font-semibold text-neutral-950">
                       Prijs en overdracht
                     </h2>
-                    <p className="mt-1 text-sm leading-6 text-neutral-600">
+                    <p className="mt-1 text-sm leading-5 text-neutral-600 sm:leading-6">
                       Dit wordt straks het financiële hart van de koopovereenkomst.
                     </p>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:mt-5 sm:gap-3 md:grid-cols-2">
                       <InfoItem label="Overeengekomen koopprijs" value={formatPrice(saleCase.agreed_price)} />
                       <InfoItem label="Waarde roerende zaken" value={formatPrice(saleCase.movable_goods_value)} />
                       <InfoItem label="Datum akkoord" value={formatDate(saleCase.acceptance_date)} />
@@ -246,9 +261,9 @@ export default async function SaleCasePage({
                 </div>
               </section>
 
-              <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+              <section className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 sm:h-12 sm:w-12">
                     <ShieldCheck className="h-5 w-5 text-emerald-600" />
                   </div>
 
@@ -256,12 +271,12 @@ export default async function SaleCasePage({
                     <h2 className="text-lg font-semibold text-neutral-950">
                       Ontbindende voorwaarden
                     </h2>
-                    <p className="mt-1 text-sm leading-6 text-neutral-600">
+                    <p className="mt-1 text-sm leading-5 text-neutral-600 sm:leading-6">
                       Deze onderdelen bepalen wanneer koper nog van de overeenkomst
                       af kan.
                     </p>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:mt-5 sm:gap-3 md:grid-cols-2">
                       <InfoItem
                         label="Financieringsvoorbehoud"
                         value={saleCondition?.financing_required ? "Ja" : "Nee"}
@@ -299,9 +314,9 @@ export default async function SaleCasePage({
                 </div>
               </section>
 
-              <section className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+              <section className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 sm:h-12 sm:w-12">
                     <Landmark className="h-5 w-5 text-emerald-600" />
                   </div>
 
@@ -309,11 +324,11 @@ export default async function SaleCasePage({
                     <h2 className="text-lg font-semibold text-neutral-950">
                       Notaris
                     </h2>
-                    <p className="mt-1 text-sm leading-6 text-neutral-600">
+                    <p className="mt-1 text-sm leading-5 text-neutral-600 sm:leading-6">
                       De notaris verzorgt uiteindelijk de juridische levering.
                     </p>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:mt-5 sm:gap-3 md:grid-cols-2">
                       <InfoItem label="Notariskantoor" value={saleCase.notary_office_name || "Nog niet ingevuld"} />
                       <InfoItem label="Plaats notaris" value={saleCase.notary_city || "Nog niet ingevuld"} />
                       <InfoItem label="E-mail notaris" value={saleCase.notary_email || "Nog niet ingevuld"} />
@@ -324,8 +339,8 @@ export default async function SaleCasePage({
               </section>
             </div>
 
-            <aside className="space-y-5">
-              <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
+            <aside className="w-full max-w-full min-w-0 space-y-5">
+              <div className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
                   <FileText className="h-5 w-5 text-emerald-600" />
                 </div>
@@ -342,10 +357,17 @@ export default async function SaleCasePage({
                 <SaleContractActions
                   saleCaseId={saleCase.id}
                   latestDocument={latestContractDocument}
+                  validationData={{
+                    listing,
+                    saleCase,
+                    saleCondition,
+                    buyers: buyers ?? [],
+                    sellers: sellers ?? [],
+                  }}
                 />
               </div>
 
-              <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
+              <div className="w-full max-w-full min-w-0 rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
                 <div className="flex items-center gap-3">
                   <CalendarDays className="h-5 w-5 text-emerald-700" />
                   <p className="font-semibold text-emerald-950">
@@ -359,7 +381,7 @@ export default async function SaleCasePage({
                 </p>
               </div>
 
-              <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-3">
                   <UserRound className="h-5 w-5 text-neutral-700" />
                   <p className="font-semibold text-neutral-950">
@@ -372,7 +394,7 @@ export default async function SaleCasePage({
                 </p>
               </div>
 
-              <div className="rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="w-full max-w-full min-w-0 rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-neutral-700" />
                   <p className="font-semibold text-neutral-950">
@@ -395,12 +417,12 @@ function InfoItem({ label, value }: { label: string; value: string }) {
   const isEmpty = value === "Nog niet ingevuld";
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">
+    <div className="w-full max-w-full min-w-0 rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 sm:px-4 sm:py-3">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500 sm:tracking-[0.12em]">
         {label}
       </p>
       <p
-        className={`mt-1 text-sm font-semibold ${
+        className={`mt-1 min-w-0 break-words text-sm font-semibold leading-5 ${
           isEmpty ? "text-neutral-400" : "text-neutral-950"
         }`}
       >

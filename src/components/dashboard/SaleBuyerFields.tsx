@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { SaleSeller } from "../../types/database";
+import type { SaleBuyer } from "../../types/database";
 import HuisDateInput from "../ui/HuisDateInput";
+import HuisInfoTooltip from "../ui/HuisInfoTooltip";
 import HuisSelect from "../ui/HuisSelect";
 
 const IDENTIFICATION_TYPE_OPTIONS = [
   { value: "", label: "Selecteer legitimatie" },
   { value: "Paspoort", label: "Paspoort" },
-  {
-    value: "Nederlandse identiteitskaart",
-    label: "Nederlandse identiteitskaart",
-  },
+  { value: "Nederlandse identiteitskaart", label: "Nederlandse identiteitskaart" },
   { value: "Rijbewijs", label: "Rijbewijs" },
   { value: "Verblijfsdocument", label: "Verblijfsdocument" },
   { value: "Vreemdelingenpaspoort", label: "Vreemdelingenpaspoort" },
@@ -22,24 +20,15 @@ const MARITAL_STATUS_OPTIONS = [
   { value: "", label: "Maak een keuze" },
   { value: "ongehuwd", label: "Ongehuwd" },
   { value: "gehuwd", label: "Gehuwd" },
-  {
-    value: "geregistreerd_partnerschap",
-    label: "Geregistreerd partnerschap",
-  },
+  { value: "geregistreerd_partnerschap", label: "Geregistreerd partnerschap" },
   { value: "gescheiden", label: "Gescheiden" },
   { value: "weduwe_weduwnaar", label: "Weduwe/weduwnaar" },
 ];
 
 const PROPERTY_REGIME_OPTIONS = [
   { value: "", label: "Maak een keuze" },
-  {
-    value: "gemeenschap_van_goederen",
-    label: "Gemeenschap van goederen",
-  },
-  {
-    value: "beperkte_gemeenschap_van_goederen",
-    label: "Beperkte gemeenschap van goederen",
-  },
+  { value: "gemeenschap_van_goederen", label: "Gemeenschap van goederen" },
+  { value: "beperkte_gemeenschap_van_goederen", label: "Beperkte gemeenschap van goederen" },
   { value: "huwelijkse_voorwaarden", label: "Huwelijkse voorwaarden" },
   { value: "niet_van_toepassing", label: "Niet van toepassing" },
 ];
@@ -88,8 +77,8 @@ function TextField({
   );
 }
 
-function SellerCard({
-  seller,
+function BuyerCard({
+  buyer,
   order,
   maxBirthDate,
   partnerOfFirst = false,
@@ -98,7 +87,7 @@ function SellerCard({
   onMaritalStatusChange,
   onPropertyRegimeChange,
 }: {
-  seller?: SaleSeller | null;
+  buyer?: SaleBuyer | null;
   order: 1 | 2;
   maxBirthDate: Date;
   partnerOfFirst?: boolean;
@@ -107,12 +96,12 @@ function SellerCard({
   onMaritalStatusChange?: (value: string) => void;
   onPropertyRegimeChange?: (value: string) => void;
 }) {
-  const prefix = `seller_${order}`;
+  const prefix = `buyer_${order}`;
   const [maritalStatus, setMaritalStatus] = useState(
-    seller?.marital_status ?? ""
+    buyer?.marital_status ?? ""
   );
   const [propertyRegime, setPropertyRegime] = useState(
-    seller?.matrimonial_property_regime ?? ""
+    buyer?.matrimonial_property_regime ?? ""
   );
   const effectiveMaritalStatus = partnerOfFirst
     ? inheritedMaritalStatus ?? ""
@@ -141,57 +130,24 @@ function SellerCard({
 
   return (
     <div className="w-full max-w-full min-w-0 rounded-3xl border border-neutral-200 bg-neutral-50 p-4 sm:p-5">
-      <h3 className="text-base font-semibold text-neutral-950">
-        Verkoper {order}
-      </h3>
+      <h3 className="text-base font-semibold text-neutral-950">Koper {order}</h3>
 
       <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
-        <TextField
-          name={`${prefix}_first_name`}
-          label="Voornaam"
-          defaultValue={seller?.first_name}
-          required
-          contractField={`${prefix}_first_name`}
-        />
-        <TextField
-          name={`${prefix}_last_name`}
-          label="Achternaam"
-          defaultValue={seller?.last_name}
-          required
-          contractField={`${prefix}_last_name`}
-        />
-        <TextField
-          name={`${prefix}_initials`}
-          label="Initialen"
-          defaultValue={seller?.initials}
-        />
-        <TextField
-          name={`${prefix}_birth_place`}
-          label="Geboorteplaats"
-          defaultValue={seller?.birth_place}
-          required
-          contractField={`${prefix}_birth_place`}
-        />
+        <TextField name={`${prefix}_first_name`} label="Voornaam" defaultValue={buyer?.first_name} required contractField={`${prefix}_first_name`} />
+        <TextField name={`${prefix}_last_name`} label="Achternaam" defaultValue={buyer?.last_name} required contractField={`${prefix}_last_name`} />
+        <TextField name={`${prefix}_initials`} label="Initialen" defaultValue={buyer?.initials} />
+        <TextField name={`${prefix}_birth_place`} label="Geboorteplaats" defaultValue={buyer?.birth_place} required contractField={`${prefix}_birth_place`} />
         <div data-contract-field={`${prefix}_birth_date`}>
           <HuisDateInput
             name={`${prefix}_birth_date`}
             label="Geboortedatum"
-            defaultValue={formatDateForInput(seller?.birth_date)}
+            defaultValue={formatDateForInput(buyer?.birth_date)}
             maxDate={maxBirthDate}
             required
           />
         </div>
-        <TextField
-          name={`${prefix}_email`}
-          label="E-mailadres"
-          type="email"
-          defaultValue={seller?.email}
-        />
-        <TextField
-          name={`${prefix}_phone`}
-          label="Telefoonnummer"
-          defaultValue={seller?.phone}
-        />
+        <TextField name={`${prefix}_email`} label="E-mailadres" type="email" defaultValue={buyer?.email} />
+        <TextField name={`${prefix}_phone`} label="Telefoonnummer" defaultValue={buyer?.phone} />
         {partnerOfFirst ? (
           <div className="min-w-0" data-contract-field={`${prefix}_marital_status`}>
             <input
@@ -208,7 +164,7 @@ function SellerCard({
               Burgerlijke staat
             </span>
             <div className="mt-2 min-h-12 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-600">
-              Gelijk aan verkoper 1
+              Gelijk aan koper 1
             </div>
           </div>
         ) : (
@@ -217,7 +173,7 @@ function SellerCard({
               <HuisSelect
                 name={`${prefix}_marital_status`}
                 label="Burgerlijke staat"
-                defaultValue={seller?.marital_status}
+                defaultValue={buyer?.marital_status}
                 options={MARITAL_STATUS_OPTIONS}
                 required
                 onChange={handleMaritalStatusChange}
@@ -227,7 +183,7 @@ function SellerCard({
               <HuisSelect
                 name={`${prefix}_matrimonial_property_regime`}
                 label="Huwelijksgoederenrecht"
-                defaultValue={seller?.matrimonial_property_regime}
+                defaultValue={buyer?.matrimonial_property_regime}
                 options={PROPERTY_REGIME_OPTIONS}
                 onChange={handlePropertyRegimeChange}
               />
@@ -243,39 +199,15 @@ function SellerCard({
       </div>
 
       <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
-        <TextField
-          name={`${prefix}_street`}
-          label="Straat"
-          defaultValue={seller?.street}
-          required
-          contractField={`${prefix}_street`}
-        />
-        <TextField
-          name={`${prefix}_house_number`}
-          label="Huisnummer"
-          defaultValue={seller?.house_number}
-          required
-          contractField={`${prefix}_house_number`}
-        />
-        <TextField
-          name={`${prefix}_postal_code`}
-          label="Postcode"
-          defaultValue={seller?.postal_code}
-          required
-          contractField={`${prefix}_postal_code`}
-        />
-        <TextField
-          name={`${prefix}_city`}
-          label="Woonplaats"
-          defaultValue={seller?.city}
-          required
-          contractField={`${prefix}_city`}
-        />
+        <TextField name={`${prefix}_street`} label="Straat" defaultValue={buyer?.street} required contractField={`${prefix}_street`} />
+        <TextField name={`${prefix}_house_number`} label="Huisnummer" defaultValue={buyer?.house_number} required contractField={`${prefix}_house_number`} />
+        <TextField name={`${prefix}_postal_code`} label="Postcode" defaultValue={buyer?.postal_code} required contractField={`${prefix}_postal_code`} />
+        <TextField name={`${prefix}_city`} label="Woonplaats" defaultValue={buyer?.city} required contractField={`${prefix}_city`} />
         <div data-contract-field={`${prefix}_identification_type`}>
           <HuisSelect
             name={`${prefix}_identification_type`}
             label="Soort legitimatie"
-            defaultValue={seller?.identification_type}
+            defaultValue={buyer?.identification_type}
             options={IDENTIFICATION_TYPE_OPTIONS}
             required
           />
@@ -283,7 +215,7 @@ function SellerCard({
         <TextField
           name={`${prefix}_identification_number`}
           label="Documentnummer"
-          defaultValue={seller?.identification_number}
+          defaultValue={buyer?.identification_number}
           required
           contractField={`${prefix}_identification_number`}
         />
@@ -292,79 +224,85 @@ function SellerCard({
   );
 }
 
-export default function SaleSellerFields({ sellers }: { sellers: SaleSeller[] }) {
-  const sellerOne =
-    sellers.find((seller) => seller.seller_order === 1) ?? sellers[0];
-  const sellerTwo =
-    sellers.find((seller) => seller.seller_order === 2) ?? sellers[1];
-  const [sellerMode, setSellerMode] = useState<"one" | "two">(
-    sellerTwo ? "two" : "one"
+export default function SaleBuyerFields({ buyers }: { buyers: SaleBuyer[] }) {
+  const buyerOne = buyers.find((buyer) => buyer.buyer_order === 1) ?? buyers[0];
+  const buyerTwo = buyers.find((buyer) => buyer.buyer_order === 2) ?? buyers[1];
+  const [buyerMode, setBuyerMode] = useState<"one" | "two">(
+    buyerTwo ? "two" : "one"
   );
-  const [sellerTwoIsPartner, setSellerTwoIsPartner] = useState(false);
-  const [sellerOneMaritalStatus, setSellerOneMaritalStatus] = useState<string>(
-    sellerOne?.marital_status ?? ""
+  const [buyerTwoIsPartner, setBuyerTwoIsPartner] = useState(false);
+  const [buyerOneMaritalStatus, setBuyerOneMaritalStatus] = useState<string>(
+    buyerOne?.marital_status ?? ""
   );
-  const [sellerOnePropertyRegime, setSellerOnePropertyRegime] = useState<string>(
-    sellerOne?.matrimonial_property_regime ?? "niet_van_toepassing"
+  const [buyerOnePropertyRegime, setBuyerOnePropertyRegime] = useState<string>(
+    buyerOne?.matrimonial_property_regime ?? "niet_van_toepassing"
   );
   const today = new Date();
 
   return (
     <div className="mt-6 w-full max-w-full min-w-0 space-y-5">
-      <input type="hidden" name="seller_count" value={sellerMode} />
+      <input type="hidden" name="buyer_count" value={buyerMode} />
 
       <div className="grid grid-cols-2 rounded-2xl border border-neutral-200 bg-neutral-100 p-1">
         <button
           type="button"
-          onClick={() => setSellerMode("one")}
-          aria-pressed={sellerMode === "one"}
+          onClick={() => setBuyerMode("one")}
+          aria-pressed={buyerMode === "one"}
           className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
-            sellerMode === "one"
+            buyerMode === "one"
               ? "bg-white text-neutral-950 shadow-sm"
               : "text-neutral-600 hover:text-neutral-950"
           }`}
         >
-          Een verkoper
+          Een koper
         </button>
         <button
           type="button"
-          onClick={() => setSellerMode("two")}
-          aria-pressed={sellerMode === "two"}
+          onClick={() => setBuyerMode("two")}
+          aria-pressed={buyerMode === "two"}
           className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition ${
-            sellerMode === "two"
+            buyerMode === "two"
               ? "bg-white text-neutral-950 shadow-sm"
               : "text-neutral-600 hover:text-neutral-950"
           }`}
         >
-          Twee verkopers
+          Twee kopers
         </button>
       </div>
 
-      <SellerCard
-        seller={sellerOne}
+      <div className="flex items-start gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm leading-5 text-emerald-900 sm:p-4 sm:leading-6">
+        <HuisInfoTooltip
+          title="Kopergegevens"
+          content="Deze gegevens worden rechtstreeks gebruikt voor de partijgegevens in de koopovereenkomst."
+        />
+        <p>Controleer de tenaamstelling en legitimatiegegevens zorgvuldig.</p>
+      </div>
+
+      <BuyerCard
+        buyer={buyerOne}
         order={1}
         maxBirthDate={today}
-        onMaritalStatusChange={setSellerOneMaritalStatus}
-        onPropertyRegimeChange={setSellerOnePropertyRegime}
+        onMaritalStatusChange={setBuyerOneMaritalStatus}
+        onPropertyRegimeChange={setBuyerOnePropertyRegime}
       />
-      {sellerMode === "two" ? (
+      {buyerMode === "two" ? (
         <>
           <label className="flex min-w-0 items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm font-semibold text-emerald-950 sm:p-4">
             <input
               type="checkbox"
-              checked={sellerTwoIsPartner}
-              onChange={(event) => setSellerTwoIsPartner(event.target.checked)}
+              checked={buyerTwoIsPartner}
+              onChange={(event) => setBuyerTwoIsPartner(event.target.checked)}
               className="mt-1 h-4 w-4 shrink-0 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-600"
             />
-            <span>Verkoper 2 is partner van verkoper 1</span>
+            <span>Koper 2 is partner van koper 1</span>
           </label>
-          <SellerCard
-            seller={sellerTwo}
+          <BuyerCard
+            buyer={buyerTwo}
             order={2}
             maxBirthDate={today}
-            partnerOfFirst={sellerTwoIsPartner}
-            inheritedMaritalStatus={sellerOneMaritalStatus}
-            inheritedPropertyRegime={sellerOnePropertyRegime}
+            partnerOfFirst={buyerTwoIsPartner}
+            inheritedMaritalStatus={buyerOneMaritalStatus}
+            inheritedPropertyRegime={buyerOnePropertyRegime}
           />
         </>
       ) : null}

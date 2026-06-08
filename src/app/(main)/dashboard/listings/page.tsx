@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Home, Plus, ChevronRight, Check, Pencil } from "lucide-react";
+import { Home, Plus, Check } from "lucide-react";
 import { createClient } from "../../../../lib/supabase/server";
 import { getUserListings } from "../../../../lib/actions/listings";
 import ListingManagementActions from "../../../../components/dashboard/ListingManagementActions";
@@ -167,6 +167,9 @@ export default async function DashboardListingsPage() {
               const isLive = listing.status === "active";
               const isPending = listing.status === "pending";
               const isRejected = listing.status === "rejected";
+              const isSold = listing.status === "sold";
+              const canGenerateContract =
+                listing.status !== "sold" && listing.status !== "deleted";
               const completionPercentage = getCompletionPercentage(listing);
               const publicPath = buildPublicHousePath({
                 slug: listing.slug,
@@ -209,6 +212,10 @@ export default async function DashboardListingsPage() {
                       ) : isRejected ? (
                         <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-red-700 shadow-sm ring-1 ring-inset ring-red-500/30">
                           Afgewezen
+                        </span>
+                      ) : isSold ? (
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 shadow-sm ring-1 ring-inset ring-red-200">
+                          Verkocht
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-inset ring-neutral-400/20">
@@ -284,38 +291,12 @@ export default async function DashboardListingsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <Link
-                        href={`/listings/${listing.id}/edit`}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Bewerken
-                      </Link>
-
-                      {isLive ? (
-                        <Link
-                          href={publicPath}
-                          target="_blank"
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
-                        >
-                          Bekijk advertentie
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      ) : (
-                        <Link
-                          href={`/listings/${listing.id}/edit`}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
-                        >
-                          {isRejected ? "Pas aan" : "Compleet maken"}
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      )}
-                    </div>
-
                     <ListingManagementActions
                       listingId={listing.id}
                       isLive={isLive}
+                      isRejected={isRejected}
+                      canGenerateContract={canGenerateContract}
+                      publicPath={publicPath}
                     />
                   </div>
                 </article>

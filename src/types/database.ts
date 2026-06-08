@@ -20,6 +20,15 @@ export type Listing = {
   year_built: number | null;
   description: string | null;
   property_type: string | null;
+  features?: Json | null;
+  house_number?: string | null;
+  postal_code?: string | null;
+  apartment_index_number?: string | null;
+  apartment_complex_name?: string | null;
+  vve_name?: string | null;
+  monthly_service_costs?: number | null;
+  reserve_fund?: number | string | null;
+  mjop_available?: boolean | null;
   status: ListingStatus;
   is_featured: boolean;
   latitude: number | null;
@@ -188,6 +197,19 @@ export type SaleCondition = {
   updated_at: string;
 };
 
+export type SaleMovableItem = {
+  id: string;
+  sale_case_id: string;
+  category: string;
+  item_name: string;
+  item_status: "included" | "optional" | "excluded" | "not_present";
+  agreed_price: number | null;
+  notes: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SaleDocument = {
   id: string;
   sale_case_id: string;
@@ -295,6 +317,15 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Omit<SaleCondition, "id" | "created_at" | "updated_at">>;
+      };
+      sale_movable_items: {
+        Row: SaleMovableItem;
+        Insert: Omit<SaleMovableItem, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<SaleMovableItem, "id" | "created_at" | "updated_at">>;
       };
       sale_documents: {
         Row: SaleDocument;
