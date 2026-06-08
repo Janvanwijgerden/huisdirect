@@ -44,6 +44,16 @@ type SelectedAddress = {
   formattedAddress: string;
 };
 
+type CadastreData = {
+  parcel_id?: string | null;
+  source?: string | null;
+  cadastral_municipality?: string | null;
+  cadastral_section?: string | null;
+  cadastral_number?: string | null;
+  cadastral_description?: string | null;
+  plot_size?: number | string | null;
+};
+
 type BagData = {
   street?: string;
   city?: string;
@@ -54,6 +64,7 @@ type BagData = {
   plot_size?: number | string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
+  cadastre?: CadastreData | null;
 
   living_area?: number | string | null;
   year_built?: number | string | null;
@@ -688,6 +699,11 @@ if (window.google?.maps?.importLibrary) {
               type="hidden"
               name="bag_pand_id"
               value={bagData?.bag_pand_id || ""}
+            />
+            <input
+              type="hidden"
+              name="cadastre"
+              value={JSON.stringify(bagData?.cadastre || {})}
             />
 
             <input

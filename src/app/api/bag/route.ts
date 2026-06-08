@@ -355,12 +355,28 @@ const rdY =
     : null;
 
 let plotSize: number | null = null;
-let parcelLookupRaw: unknown = null;
+let cadastre = {
+  parcel_id: null as string | null,
+  source: null as "pdok_brk_kadastrale_kaart_ogc_v1" | null,
+  cadastral_municipality: null as string | null,
+  cadastral_section: null as string | null,
+  cadastral_number: null as string | null,
+  cadastral_description: null as string | null,
+  plot_size: null as number | null,
+};
 
 if (rdX !== null && rdY !== null) {
   const parcelResult = await lookupParcelByRdCoordinates(rdX, rdY);
   plotSize = parcelResult.plotSize;
-  parcelLookupRaw = parcelResult.raw;
+  cadastre = {
+    parcel_id: parcelResult.parcelId,
+    source: parcelResult.source,
+    cadastral_municipality: parcelResult.cadastralMunicipality,
+    cadastral_section: parcelResult.cadastralSection,
+    cadastral_number: parcelResult.cadastralNumber,
+    cadastral_description: parcelResult.cadastralDescription,
+    plot_size: parcelResult.plotSize,
+  };
 }
 
 const valuation =
@@ -395,6 +411,7 @@ const valuation =
         longitude: null,
         living_area: livingArea,
         plot_size: plotSize,
+        cadastre,
         year_built: yearBuilt,
         property_type: propertyType,
         bag_address_id: address.nummeraanduidingIdentificatie || null,

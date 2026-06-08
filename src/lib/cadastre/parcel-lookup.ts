@@ -3,6 +3,10 @@
 export type ParcelLookupResult = {
   plotSize: number | null;
   parcelId: string | null;
+  cadastralMunicipality: string | null;
+  cadastralSection: string | null;
+  cadastralNumber: string | null;
+  cadastralDescription: string | null;
   source: "pdok_brk_kadastrale_kaart_ogc_v1" | null;
   raw: unknown;
 };
@@ -55,6 +59,32 @@ function pickFirstString(
   return null;
 }
 
+function buildCadastralDescription({
+  cadastralMunicipality,
+  cadastralSection,
+  cadastralNumber,
+}: {
+  cadastralMunicipality: string | null;
+  cadastralSection: string | null;
+  cadastralNumber: string | null;
+}) {
+  const parts: string[] = [];
+
+  if (cadastralMunicipality) {
+    parts.push(`gemeente ${cadastralMunicipality}`);
+  }
+
+  if (cadastralSection) {
+    parts.push(`sectie ${cadastralSection}`);
+  }
+
+  if (cadastralNumber) {
+    parts.push(`nummer ${cadastralNumber}`);
+  }
+
+  return parts.length ? `kadastraal bekend ${parts.join(", ")}` : null;
+}
+
 async function lookupParcelByBbox(
   bbox: string,
   bboxCrs: string
@@ -77,6 +107,10 @@ async function lookupParcelByBbox(
       return {
         plotSize: null,
         parcelId: null,
+        cadastralMunicipality: null,
+        cadastralSection: null,
+        cadastralNumber: null,
+        cadastralDescription: null,
         source: null,
         raw: {
           status: response.status,
@@ -93,6 +127,10 @@ async function lookupParcelByBbox(
       return {
         plotSize: null,
         parcelId: null,
+        cadastralMunicipality: null,
+        cadastralSection: null,
+        cadastralNumber: null,
+        cadastralDescription: null,
         source: "pdok_brk_kadastrale_kaart_ogc_v1",
         raw: {
           url,
@@ -123,9 +161,56 @@ async function lookupParcelByBbox(
       feature.id ??
       null;
 
+    const cadastralMunicipality = pickFirstString(props, [
+      "kadastraleGemeente",
+      "kadastraleGemeenteNaam",
+      "kadastrale_gemeente",
+      "kadastrale_gemeente_waarde",
+      "gemeente",
+      "gemeenteNaam",
+      "gemeentenaam",
+    ]);
+
+    const cadastralSection = pickFirstString(props, [
+      "sectie",
+      "kadastraleSectie",
+      "kadastrale_sectie",
+      "sectieLetter",
+      "sectieletter",
+      "sectieCode",
+      "sectiecode",
+    ]);
+
+    const cadastralNumber = pickFirstString(props, [
+      "perceelnummer",
+      "perceelNummer",
+      "perceelnummernummer",
+      "perceelNummerWaarde",
+      "nummer",
+      "perceel",
+    ]);
+
+    const cadastralDescription =
+      pickFirstString(props, [
+        "kadastraleAanduiding",
+        "kadastrale_aanduiding",
+        "kadastraleOmschrijving",
+        "kadastrale_omschrijving",
+        "omschrijving",
+      ]) ??
+      buildCadastralDescription({
+        cadastralMunicipality,
+        cadastralSection,
+        cadastralNumber,
+      });
+
     return {
       plotSize,
       parcelId,
+      cadastralMunicipality,
+      cadastralSection,
+      cadastralNumber,
+      cadastralDescription,
       source: "pdok_brk_kadastrale_kaart_ogc_v1",
       raw: {
         url,
@@ -136,6 +221,10 @@ async function lookupParcelByBbox(
     return {
       plotSize: null,
       parcelId: null,
+      cadastralMunicipality: null,
+      cadastralSection: null,
+      cadastralNumber: null,
+      cadastralDescription: null,
       source: null,
       raw: {
         error: error instanceof Error ? error.message : "Onbekende fout",

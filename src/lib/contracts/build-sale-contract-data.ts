@@ -91,6 +91,10 @@ function leaseholdFeatures(listing: ListingForContract) {
   return recordValue(recordValue(listing.features).leasehold);
 }
 
+function cadastreFeatures(listing: ListingForContract) {
+  return recordValue(recordValue(listing.features).cadastre);
+}
+
 function apartmentStringValue(
   listing: ListingForContract,
   key: string,
@@ -102,6 +106,45 @@ function apartmentStringValue(
 
   if (value === null || value === undefined || value === "") return null;
   return String(value);
+}
+
+function cadastreStringValue(listing: ListingForContract, key: string) {
+  const value = cadastreFeatures(listing)[key];
+
+  if (value === null || value === undefined || value === "") return null;
+  return String(value);
+}
+
+function cadastreNumberValue(listing: ListingForContract, key: string) {
+  const value = cadastreStringValue(listing, key);
+  if (!value) return null;
+
+  const number = Number(value.replace(/[^\d.,-]/g, "").replace(",", "."));
+  return Number.isFinite(number) ? number : null;
+}
+
+function buildCadastreDescription(listing: ListingForContract) {
+  const explicitDescription = cadastreStringValue(
+    listing,
+    "cadastral_description"
+  );
+  if (explicitDescription) return explicitDescription;
+
+  const municipality = cadastreStringValue(
+    listing,
+    "cadastral_municipality"
+  );
+  const section = cadastreStringValue(listing, "cadastral_section");
+  const number =
+    cadastreStringValue(listing, "cadastral_number") ??
+    cadastreStringValue(listing, "parcel_id");
+  const parts: string[] = [];
+
+  if (municipality) parts.push(`gemeente ${municipality}`);
+  if (section) parts.push(`sectie ${section}`);
+  if (number) parts.push(`nummer ${number}`);
+
+  return parts.length ? `kadastraal bekend ${parts.join(", ")}` : null;
 }
 
 function leaseholdStringValue(listing: ListingForContract, key: string) {
@@ -491,18 +534,23 @@ export function buildSaleContractData({
     listing.is_leasehold === true || leasehold.is_leasehold === true;
   const leaseholdDetails =
     listing.leasehold_details ?? leaseholdStringValue(listing, "erfpacht_conditions");
+  const cadastreDescription =
+    listing.cadastral_description ?? buildCadastreDescription(listing);
+  const cadastrePlotSize = cadastreNumberValue(listing, "plot_size");
+  const plotSize = listing.plot_size ?? cadastrePlotSize;
   const apartmentRightDescription =
     apartmentStringValue(listing, "apartment_right_description") ??
     apartmentComplexName ??
     "het appartementsrecht";
-  const apartmentCadastralSection = apartmentValueOrDefault(
-    listing,
-    "apartment_cadastral_section",
-    UNKNOWN
-  );
+  const apartmentCadastralSection =
+    apartmentStringValue(listing, "apartment_cadastral_section") ??
+    cadastreStringValue(listing, "cadastral_section") ??
+    UNKNOWN;
   const apartmentCadastralNumber =
     apartmentStringValue(listing, "apartment_cadastral_number") ??
+    cadastreStringValue(listing, "cadastral_number") ??
     apartmentIndexNumber ??
+    cadastreStringValue(listing, "parcel_id") ??
     UNKNOWN;
   const apartmentShare = apartmentValueOrDefault(
     listing,
@@ -511,12 +559,12 @@ export function buildSaleContractData({
   );
   const buildingCadastralDescription =
     apartmentStringValue(listing, "building_cadastral_description") ??
-    listing.cadastral_description ??
+    cadastreDescription ??
     UNKNOWN;
   const buildingPlotSize =
     apartmentStringValue(listing, "building_plot_size") ??
-    (listing.plot_size !== null && listing.plot_size !== undefined
-      ? String(listing.plot_size)
+    (plotSize !== null && plotSize !== undefined
+      ? String(plotSize)
       : UNKNOWN);
   const splitDeedDate = apartmentDateOrDefault(
     listing,
@@ -563,10 +611,10 @@ export function buildSaleContractData({
     property_house_number: valueOrDots(listing.house_number),
     property_postal_code: valueOrDots(formatPostalCode(listing.postal_code)),
     property_city: valueOrDots(listing.city),
-    cadastral_description: valueOrUnknown(listing.cadastral_description),
-    kadastral_description: valueOrUnknown(listing.cadastral_description),
+    cadastral_description: valueOrUnknown(cadastreDescription),
+    kadastral_description: valueOrUnknown(cadastreDescription),
     living_area: numericValue(listing.living_area),
-    plot_size: numericValue(listing.plot_size, UNKNOWN),
+    plot_size: numericValue(plotSize, UNKNOWN),
     build_year: valueOrDots(buildYear),
     year_built: valueOrDots(buildYear),
     is_leasehold: isLeasehold,

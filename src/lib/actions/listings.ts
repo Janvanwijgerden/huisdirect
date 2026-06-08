@@ -32,6 +32,63 @@ function extractStoragePathFromPublicUrl(publicUrl: string | null | undefined) {
   return publicUrl.slice(index + marker.length);
 }
 
+function recordValue(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : {};
+}
+
+function parseJsonRecord(value: FormDataEntryValue | null): Record<string, any> {
+  if (value === null) return {};
+
+  try {
+    return recordValue(JSON.parse(String(value)));
+  } catch {
+    return {};
+  }
+}
+
+function stringValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
+}
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+
+  const parsed = Number(value.replace(/[^\d.,-]/g, '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sanitizeCadastreFeatures(value: FormDataEntryValue | null) {
+  const input = parseJsonRecord(value);
+  const cadastre: Record<string, string | number> = {};
+
+  const stringFields = [
+    'parcel_id',
+    'source',
+    'cadastral_municipality',
+    'cadastral_section',
+    'cadastral_number',
+    'cadastral_description',
+  ];
+
+  for (const field of stringFields) {
+    const normalized = stringValue(input[field]);
+    if (normalized) cadastre[field] = normalized;
+  }
+
+  const plotSize = numberValue(input.plot_size);
+  if (plotSize !== null && plotSize > 0) {
+    cadastre.plot_size = plotSize;
+  }
+
+  return cadastre;
+}
+
 async function generateUniqueSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
   baseInput: string,
@@ -299,6 +356,20 @@ export async function createDraftListing(formData: FormData): Promise<void> {
     }
   }
 
+  const cadastre = sanitizeCadastreFeatures(formData.get('cadastre'));
+  const baseFeatures = recordValue(features);
+  const nextFeatures = {
+    ...baseFeatures,
+    ...(Object.keys(cadastre).length
+      ? {
+          cadastre: {
+            ...recordValue(baseFeatures.cadastre),
+            ...cadastre,
+          },
+        }
+      : {}),
+  };
+
   const sourceStreet = String(formData.get('source_street') || '').trim();
   const sourceHouseNumber = String(
     formData.get('source_house_number') || ''
@@ -351,7 +422,7 @@ export async function createDraftListing(formData: FormData): Promise<void> {
     bag_object_id: bagObjectId || null,
     bag_pand_id: bagPandId || null,
 
-    features: features || {},
+    features: nextFeatures,
 
     source_street: sourceStreet || street || null,
     source_house_number: sourceHouseNumber || houseNumber || null,
@@ -424,11 +495,28 @@ export async function updateDraftListing(
     updated_at: new Date().toISOString(),
   };
 
+  const { data: existingListing, error: existingListingError } = await supabase
+    .from('listings')
+    .select('features')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (existingListingError) {
+    return { error: `Bestaande woning ophalen mislukt: ${existingListingError.message}` };
+  }
+
+  const existingFeatures = recordValue(existingListing?.features);
   const featuresRaw = formData.get('features');
+  const cadastreRaw = formData.get('cadastre');
+  let incomingFeatures: Record<string, any> = {};
+
   if (featuresRaw !== null) {
     try {
-      updates.features = JSON.parse(String(featuresRaw));
-    } catch {}
+      incomingFeatures = recordValue(JSON.parse(String(featuresRaw)));
+    } catch {
+      incomingFeatures = {};
+    }
   }
 
   if (title) {
@@ -645,6 +733,27 @@ export async function updateDraftListing(
     bag_pand_id:
       String(formData.get('bag_pand_id') || '').trim() || null,
   };
+
+  if (featuresRaw !== null || cadastreRaw !== null) {
+    const existingCadastre = recordValue(existingFeatures.cadastre);
+    const featuresCadastre = recordValue(incomingFeatures.cadastre);
+    const sanitizedCadastre =
+      cadastreRaw !== null ? sanitizeCadastreFeatures(cadastreRaw) : {};
+    const nextCadastre =
+      cadastreRaw !== null
+        ? Object.keys(sanitizedCadastre).length
+          ? sanitizedCadastre
+          : existingCadastre
+        : Object.keys(featuresCadastre).length
+        ? featuresCadastre
+        : existingCadastre;
+
+    updates.features = {
+      ...existingFeatures,
+      ...incomingFeatures,
+      cadastre: nextCadastre,
+    };
+  }
 
   const { error } = await supabase
     .from('listings')
