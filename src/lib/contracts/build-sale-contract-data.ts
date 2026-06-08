@@ -584,6 +584,24 @@ export function buildSaleContractData({
     "vve_reserve_fund_date",
     UNKNOWN
   );
+  const generatedDate = formatDate(new Date().toISOString());
+  const saleCaseValues = recordValue(saleCase);
+  const deliveryDateValue =
+    saleCaseValues.delivery_date ??
+    saleCase.transfer_date ??
+    saleCase.acceptance_date;
+  const deliveryDate =
+    deliveryDateValue === null ||
+    deliveryDateValue === undefined ||
+    deliveryDateValue === ""
+      ? TO_BE_AGREED
+      : formatDate(String(deliveryDateValue));
+  const signatureCity = hasText(saleCase.notary_city)
+    ? saleCase.notary_city!.trim()
+    : hasText(listing.city)
+    ? listing.city!.trim()
+    : TO_BE_SPECIFIED;
+  const signatureDate = generatedDate || TO_BE_SPECIFIED;
 
   return {
     // Algemeen
@@ -598,7 +616,7 @@ export function buildSaleContractData({
     status: saleCase.status,
     dossier_status: saleCase.status,
     template_type: saleCase.template_type,
-    generated_date: formatDate(new Date().toISOString()),
+    generated_date: generatedDate,
 
     // Woning
     listing_id: listing.id,
@@ -618,6 +636,7 @@ export function buildSaleContractData({
     build_year: valueOrDots(buildYear),
     year_built: valueOrDots(buildYear),
     is_leasehold: isLeasehold,
+    is_erfpacht: isLeasehold,
     leasehold_details: valueOrUnknown(leaseholdDetails),
 
     // Appartement / VvE
@@ -746,6 +765,8 @@ export function buildSaleContractData({
     ),
     seller_1_id_type: valueOrDots(primarySeller?.identification_type),
     seller_1_id_number: valueOrDots(primarySeller?.identification_number),
+    seller_1_signature_city: signatureCity,
+    seller_1_signature_date: signatureDate,
 
     seller_2_name: buildPersonName(secondarySeller),
     seller_2_full_name: buildPersonName(secondarySeller),
@@ -779,6 +800,8 @@ export function buildSaleContractData({
     ),
     seller_2_id_type: valueOrDots(secondarySeller?.identification_type),
     seller_2_id_number: valueOrDots(secondarySeller?.identification_number),
+    seller_2_signature_city: signatureCity,
+    seller_2_signature_date: signatureDate,
     has_second_seller: hasPersonData(secondarySeller),
     seller_future_address: "",
     has_seller_future_address: false,
@@ -814,6 +837,8 @@ export function buildSaleContractData({
     ),
     buyer_1_id_type: valueOrDots(primaryBuyer?.identification_type),
     buyer_1_id_number: valueOrDots(primaryBuyer?.identification_number),
+    buyer_1_signature_city: signatureCity,
+    buyer_1_signature_date: signatureDate,
 
     // Koper 2
     buyer_2_name: buildPersonName(secondaryBuyer),
@@ -846,6 +871,8 @@ export function buildSaleContractData({
     ),
     buyer_2_id_type: valueOrDots(secondaryBuyer?.identification_type),
     buyer_2_id_number: valueOrDots(secondaryBuyer?.identification_number),
+    buyer_2_signature_city: signatureCity,
+    buyer_2_signature_date: signatureDate,
     has_second_buyer: hasPersonData(secondaryBuyer),
 
     // Koopsom / levering
@@ -865,6 +892,7 @@ export function buildSaleContractData({
       transferCostsPaidBy === "custom" ? "Afwijkende afspraak" : "",
     acceptance_date: formatDate(saleCase.acceptance_date),
     transfer_date: formatDate(saleCase.transfer_date),
+    delivery_date: deliveryDate,
 
     // Boete / bankgarantie
     penalty_percentage: 10,
@@ -878,6 +906,7 @@ export function buildSaleContractData({
 
     // Notaris
     notary_office_name: valueOrToBeSpecified(saleCase.notary_office_name),
+    notary_name: valueOrToBeSpecified(saleCase.notary_office_name),
     notary_city: valueOrToBeSpecified(saleCase.notary_city),
     notary_email: valueOrDots(saleCase.notary_email),
     notary_phone: valueOrDots(saleCase.notary_phone),
@@ -947,6 +976,7 @@ export function buildSaleContractData({
 
     // Registratie / aanvullende afspraken
     registration_required: Boolean(saleCondition?.registration_required),
+    has_registration: Boolean(saleCondition?.registration_required),
     has_article_13_wbr: false,
     has_additional_agreements: hasText(saleCondition?.additional_agreements),
     additional_agreements: valueOrDots(saleCondition?.additional_agreements),
